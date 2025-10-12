@@ -79,3 +79,5 @@ local_settings.py
 # Other configuration
 .vscode/
 *.orig
+
+data/

@@ -5,3 +5,5 @@ services:
         - .env
     image: saeidimohsen/beat81:latest
     restart: unless-stopped
+    volumes:
+      - ./data:/app/data
