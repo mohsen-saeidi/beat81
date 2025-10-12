@@ -4,4 +4,6 @@ WORKDIR /app
 
 COPY . /app
 
-CMD ["python", "beat81/main.py"]
+RUN pip install -r requirements.txt
+
+CMD ["python", "beat81/tg_bot.py"]

@@ -3,3 +3,5 @@ services:
     build: .
     env_file:
         - .env
+    image: saeidimohsen/beat81:latest
+    restart: unless-stopped
