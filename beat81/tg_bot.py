@@ -17,9 +17,9 @@ user_data = {}
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Create a keyboard with a "Login" button
     user_id = update.effective_user.id
-    user = get_user_by_user_id(user_id)
+    user = get_user_by_user_id(str(user_id))
     if user:
-        keyboard = [[InlineKeyboardButton("Get my classes", callback_data="get_my_classes")]]
+        keyboard = [[InlineKeyboardButton("Get my bookings", callback_data="get_my_bookings")]]
     else:
         keyboard = [[InlineKeyboardButton("Login", callback_data="login")]]
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -37,7 +37,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.message.reply_text("Please enter your email:")
         user_data[query.from_user.id] = {"step": "email"}  # Track the next step for this user
 
-    if query.data == "get_my_classes":
+    if query.data == "get_my_bookings":
         print("available classes are:")
 
 

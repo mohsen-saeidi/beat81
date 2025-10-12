@@ -1,3 +1,4 @@
 requests
+PyJWT
 python-dotenv
 python-telegram-bot
