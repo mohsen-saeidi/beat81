@@ -3,7 +3,7 @@ from datetime import datetime
 import jwt
 import requests
 
-from db_helper import init_db, save_user
+from db_helper import init_db, save_user, get_user_by_user_id
 
 init_db()
 
@@ -46,6 +46,37 @@ def login(telegram_user_id, email, password):
     except requests.exceptions.RequestException as e:
         print(f"Error while calling the login API: {e}")
         return False
+
+
+def tickets(telegram_user_id):
+    user = get_user_by_user_id(str(telegram_user_id))
+
+    url = "https://api.production.b81.io/api/tickets"
+
+    # Prepare query parameters
+    params = {}
+    params["user_id"] = user['beat81_user_id']
+    params["status_ne"] = 'cancelled'
+    params["event_date_begin_gte"] = datetime.now()
+
+    try:
+        # Make the GET request to fetch tickets with optional filters
+        headers = {"Authorization": f"Bearer {user['token']}"}
+        response = requests.get(url, params=params, headers=headers)
+
+        # Check if the request was successful
+        if response.status_code == 200:
+            print("Tickets fetched successfully!")
+            tickets_data = response.json()
+            print(tickets_data)
+            return tickets_data.get('total')  # Return the response data
+        else:
+            print(f"Failed to fetch tickets: {response.status_code}: {response.text}")
+            return None
+
+    except requests.exceptions.RequestException as e:
+        print(f"Error while calling the tickets API: {e}")
+        return None
 
 
 def extract_data_from_jwt(jwt_token, secret_key=None):

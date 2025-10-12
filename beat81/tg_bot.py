@@ -2,7 +2,7 @@ import os
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import CommandHandler, CallbackQueryHandler, MessageHandler, Application, ContextTypes, filters
 from dotenv import load_dotenv
-from beat81 import login
+from beat81 import login, tickets
 from db_helper import get_user_by_user_id
 
 # Load token and other environment variables from .env file
@@ -38,7 +38,8 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user_data[query.from_user.id] = {"step": "email"}  # Track the next step for this user
 
     if query.data == "get_my_bookings":
-        print("available classes are:")
+        tickets_response = tickets(query.from_user.id)
+        await query.message.reply_text(f"Total bookings: {tickets_response}")
 
 
 # Message handler for email and password input
