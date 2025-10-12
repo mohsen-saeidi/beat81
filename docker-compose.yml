@@ -1,0 +1,3 @@
+services:
+  beat81:
+    build: .
