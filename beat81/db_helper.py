@@ -19,21 +19,25 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             email TEXT NOT NULL UNIQUE,
             password TEXT NOT NULL,
-            token TEXT
+            token TEXT,
+            telegram_user_id TEXT,
+            creation_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            last_login_date TIMESTAMP 
+
         )
         ''')
         conn.commit()  # Save changes
 
 
 # Function to save a user email and password
-def save_user(email, password, token):
+def save_user(email, password, token, user_id, creation_time, last_login_date):
     try:
         with sqlite3.connect(DATABASE_FILE) as conn:
             cursor = conn.cursor()
             cursor.execute('''
-            INSERT INTO users (email, password, token)
-            VALUES (?, ?, ?)
-            ''', (email, password, token))
+            INSERT INTO users (email, password, token, telegram_user_id, creation_time, last_login_date)
+            VALUES (?, ?, ?, ?, ?, ?)
+            ''', (email, password, token, user_id, creation_time, last_login_date))
             conn.commit()  # Save changes
             print(f"User {email} saved successfully.")
             return True
@@ -43,10 +47,66 @@ def save_user(email, password, token):
         return False
 
 
-# Function to get all saved users (optional, for debugging)
-def get_all_users():
-    with sqlite3.connect(DATABASE_FILE) as conn:
-        cursor = conn.cursor()
-        cursor.execute('SELECT email, password, token FROM users')
-        users = cursor.fetchall()
-        return users
+def get_user_by_email(email):
+    try:
+        with sqlite3.connect(DATABASE_FILE) as conn:
+            cursor = conn.cursor()
+
+            # Query to fetch user details by email
+            cursor.execute('''
+            SELECT id, email, password, token, telegram_user_id, creation_time, last_login_date
+            FROM users
+            WHERE email = ?
+            ''', (email,))
+
+            user = cursor.fetchone()
+
+            # Return the user record if it exists
+            if user:
+                return {
+                    "id": user[0],
+                    "email": user[1],
+                    "password": user[2],
+                    "token": user[3],
+                    "telegram_user_id": user[4],
+                    "creation_time": user[5],
+                    "last_login_date": user[6]
+                }
+            else:
+                print(f"No user found with email: {email}")
+                return None
+    except Exception as e:
+        print(f"An error occurred while fetching user by email: {e}")
+        return None
+
+def get_user_by_user_id(user_id):
+    try:
+        with sqlite3.connect(DATABASE_FILE) as conn:
+            cursor = conn.cursor()
+
+            # Query to fetch user details by email
+            cursor.execute('''
+            SELECT id, email, password, token, telegram_user_id, creation_time, last_login_date
+            FROM users
+            WHERE telegram_user_id = ?
+            ''', (user_id,))
+
+            user = cursor.fetchone()
+
+            # Return the user record if it exists
+            if user:
+                return {
+                    "id": user[0],
+                    "email": user[1],
+                    "password": user[2],
+                    "token": user[3],
+                    "telegram_user_id": user[4],
+                    "creation_time": user[5],
+                    "last_login_date": user[6]
+                }
+            else:
+                print(f"No user found with user_id: {user_id}")
+                return None
+    except Exception as e:
+        print(f"An error occurred while fetching user by user_id: {e}")
+        return None

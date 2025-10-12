@@ -3,6 +3,7 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import CommandHandler, CallbackQueryHandler, MessageHandler, Application, ContextTypes, filters
 from dotenv import load_dotenv
 from beat81 import login
+from db_helper import get_user_by_user_id
 
 # Load token and other environment variables from .env file
 load_dotenv()
@@ -15,12 +16,16 @@ user_data = {}
 # Start command: Show a menu with options (like the Login button)
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Create a keyboard with a "Login" button
-    keyboard = [[InlineKeyboardButton("Login", callback_data="login")]]
+    user_id = update.effective_user.id
+    user = get_user_by_user_id(user_id)
+    if user:
+        keyboard = [[InlineKeyboardButton("Get my classes", callback_data="get_my_classes")]]
+    else:
+        keyboard = [[InlineKeyboardButton("Login", callback_data="login")]]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     # Send the message with Inline Keyboard
-    await update.message.reply_text("Welcome! Choose an option below:", reply_markup=reply_markup)
-
+    await update.message.reply_text("Choose an option below:", reply_markup=reply_markup)
 
 # Callback for handling button clicks
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -31,6 +36,9 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Start the login process by asking for the email
         await query.message.reply_text("Please enter your email:")
         user_data[query.from_user.id] = {"step": "email"}  # Track the next step for this user
+
+    if query.data == "get_my_classes":
+        print("available classes are:")
 
 
 # Message handler for email and password input
@@ -45,6 +53,7 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             # Save the email so we can ask for the password next
             user_data[user_id]["email"] = update.message.text
             user_data[user_id]["step"] = "password"
+
             await update.message.reply_text("Got it! Now enter your password:")
 
         elif step == "password":
@@ -54,7 +63,7 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             password = user_data[user_id]["password"]
 
             # Call the login API
-            login_success = login(email, password)
+            login_success = login(user_id, email, password)
 
             if login_success:
                 await update.message.reply_text("Login successful! 🎉")

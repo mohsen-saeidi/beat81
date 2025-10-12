@@ -1,11 +1,14 @@
 import requests
-from db_helper import init_db, save_user
+from db_helper import init_db, save_user, get_user_by_email
+from datetime import datetime
+
 
 init_db()
 
 
 # API login function
-def login(email, password):
+def login(user_id, email, password):
+
     url = "https://api.production.b81.io/api/authentication"  # The login API URL
     payload = {
         "email": email,
@@ -22,7 +25,7 @@ def login(email, password):
             response_data = response.json()
             token = response_data.get("data", {}).get("accessToken")
 
-            if save_user(email=email, password=password, token=token):
+            if save_user(email=email, password=password, token=token, user_id=user_id, creation_time=datetime.now(), last_login_date=datetime.now()):
                 print(f"{email} saved to the database.")
             else:
                 print(f"{email} already exists in the database.")
