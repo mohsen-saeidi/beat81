@@ -4,4 +4,4 @@ WORKDIR /app
 
 COPY . /app
 
-CMD ["python", "src/main.py"]
+CMD ["python", "beat81/main.py"]

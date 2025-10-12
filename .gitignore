@@ -1,0 +1,81 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Virtual environment
+venv/
+env/
+ENV/
+.venv/
+.ENV/
+
+# Installed dependencies
+*.egg
+*.egg-info/
+dist/
+build/
+*.whl
+
+# PyInstaller
+#  Usually these files are written by a python script from a package
+#  before PyInstaller builds the exe, so as to inject date/other infos into it.
+*.manifest
+*.spec
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# Pytest
+.cache/
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Environments
+.env
+.env.*
+*.env
+
+# tox
+.tox/
+.pytest_cache/
+
+# Sphinx documentation
+docs/_build/
+
+# PyCharm and other editors/IDEs
+.idea/
+*.swp
+*.swo
+*.swd
+
+# Mac-specific files
+.DS_Store
+
+# Logs
+*.log
+
+# Local settings
+local_settings.py
+
+# Backup files
+*.bak
+*.tmp
+
+# Profiling data
+.prof
+
+# Other configuration
+.vscode/
+*.orig

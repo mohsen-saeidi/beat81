@@ -1,3 +1,5 @@
 services:
   beat81:
     build: .
+    env_file:
+        - .env
