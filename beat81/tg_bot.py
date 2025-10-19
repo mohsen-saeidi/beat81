@@ -3,6 +3,9 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import CommandHandler, CallbackQueryHandler, MessageHandler, Application, ContextTypes, filters
 from dotenv import load_dotenv
 from beat81 import login, tickets
+from datetime import datetime
+from zoneinfo import ZoneInfo
+
 from db_helper import get_user_by_user_id
 
 # Load token and other environment variables from .env file
@@ -37,9 +40,31 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.message.reply_text("Please enter your email:")
         user_data[query.from_user.id] = {"step": "email"}  # Track the next step for this user
 
-    if query.data == "get_my_bookings":
+    elif query.data == "get_my_bookings":
         tickets_response = tickets(query.from_user.id)
-        await query.message.reply_text(f"Total bookings: {tickets_response}")
+        keyboard = []
+        for ticket in tickets_response.get('data', []):
+            event = ticket.get('event')
+            iso_date = event.get('date_begin')
+            date_begin = datetime.strptime(iso_date, "%Y-%m-%dT%H:%M:%S.%fZ").replace(tzinfo=ZoneInfo("UTC")).astimezone(ZoneInfo("Europe/Berlin"))
+            formatted_time = date_begin.strftime("%A %d %b %-I:%M %p") # %A = full weekday name, %b = abbreviated month name, %I:%M %p = 12-hour time with AM/PM
+
+            location = event.get('location')
+            location_name = location.get('name')
+            event_id = event.get('id')
+            keyboard.append([InlineKeyboardButton(f"{location_name}({formatted_time})", callback_data=f"eventDetails_{event_id}")])
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await query.message.reply_text(f"Total bookings: {tickets_response.get('total')}", reply_markup=reply_markup)
+
+    elif query.data.startswith("eventDetails_"):
+        event_id = query.data.split("_")[1]
+        await query.message.reply_text(f"event id : {event_id}")
+        #ticket_details = tickets(query.from_user.id, ticket_id)
+        # keyboard = []
+        # for booking in ticket_details.get('data', []):
+        #     booking_date = booking.get('date')
+        #     booking_time = booking.get('time')
+        #     keyboard.append([InlineKeyboardButton(booking_date, callback_data=f"booking_details_{booking_date}_{booking_time}")])
 
 
 # Message handler for email and password input

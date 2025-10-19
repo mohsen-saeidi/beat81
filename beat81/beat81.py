@@ -58,6 +58,8 @@ def tickets(telegram_user_id):
     params["user_id"] = user['beat81_user_id']
     params["status_ne"] = 'cancelled'
     params["event_date_begin_gte"] = datetime.now()
+    params["$sort[event_date_begin]"] = '1'
+    params["$limit"] = '30'
 
     try:
         # Make the GET request to fetch tickets with optional filters
@@ -68,8 +70,7 @@ def tickets(telegram_user_id):
         if response.status_code == 200:
             print("Tickets fetched successfully!")
             tickets_data = response.json()
-            print(tickets_data)
-            return tickets_data.get('total')  # Return the response data
+            return tickets_data
         else:
             print(f"Failed to fetch tickets: {response.status_code}: {response.text}")
             return None
