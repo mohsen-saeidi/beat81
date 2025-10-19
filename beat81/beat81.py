@@ -22,7 +22,6 @@ def login(telegram_user_id, email, password):
 
         # Check if the API call was successful
         if response.status_code == 201:
-            print("Login successful!")
             response_data = response.json()
             token = response_data.get("data", {}).get("accessToken")
             user_info = extract_data_from_jwt(token)
@@ -37,7 +36,6 @@ def login(telegram_user_id, email, password):
 
             return True
         elif response.status_code == 401:
-            print("Invalid credentials.")
             return False
         else:
             print(f"Unexpected response: {response.status_code}: {response.text}")
@@ -68,7 +66,6 @@ def tickets(telegram_user_id):
 
         # Check if the request was successful
         if response.status_code == 200:
-            print("Tickets fetched successfully!")
             tickets_data = response.json()
             return tickets_data
         else:
@@ -79,6 +76,20 @@ def tickets(telegram_user_id):
         print(f"Error while calling the tickets API: {e}")
         return None
 
+def event_info(event_id):
+    url = "https://api.production.b81.io/api/events/" + event_id
+
+    try:
+        response = requests.get(url)
+        if response.status_code == 200:
+            event_data = response.json()
+            return event_data
+        else:
+            print(f"Failed to fetch event: {response.status_code}: {response.text}")
+            return None
+    except requests.exceptions.RequestException as e:
+        print(f"Error while calling the event API: {e}")
+        return None
 
 def extract_data_from_jwt(jwt_token, secret_key=None):
     try:
