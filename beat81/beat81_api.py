@@ -1,9 +1,10 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import jwt
 import requests
 
-from db_helper import init_db, save_user, get_user_by_user_id
+from beat81.date_helper import next_date_to_day
+from beat81.db_helper import init_db, save_user, get_user_by_user_id
 
 init_db()
 
@@ -120,6 +121,33 @@ def event_info(event_id):
 
     try:
         response = requests.get(url)
+        if response.status_code == 200:
+            event_data = response.json()
+            return event_data
+        else:
+            print(f"Failed to fetch event: {response.status_code}: {response.text}")
+            return None
+    except requests.exceptions.RequestException as e:
+        print(f"Error while calling the event API: {e}")
+        return None
+
+def events(dayOfWeek, city):
+    url = "https://api.production.b81.io/api/events/"
+    date = next_date_to_day(dayOfWeek)
+
+    params = {}
+    params["$sort[date_begin]"] = '1'
+    params["date_begin_gte"] = date
+    params["date_begin_lte"] = date + timedelta(days=1)
+    params["$sort[coach_id]"] = '1'
+    params["is_published"] = 'true'
+    params["status_ne"] = 'cancelled'
+    params["location_city_code"] = city.name
+    params["$limit"] = '200'
+
+
+    try:
+        response = requests.get(url, params=params)
         if response.status_code == 200:
             event_data = response.json()
             return event_data
