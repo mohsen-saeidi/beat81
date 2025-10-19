@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import CommandHandler, CallbackQueryHandler, MessageHandler, Application, ContextTypes, filters
 
-from beat81 import login, tickets, event_info, ticket_info
+from beat81 import login, tickets, event_info, ticket_info, ticket_cancel
 from date_helper import get_date_formatted_short
 from db_helper import get_user_by_user_id
 
@@ -47,25 +47,16 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user_data[telegram_user_id] = {"step": "email"}  # Track the next step for this user
 
     elif query.data == "get_my_bookings" or query.data == "cancelTicket_back":
-        tickets_response = tickets(telegram_user_id)
-        keyboard = []
-        for ticket in tickets_response.get('data', []):
-            event = ticket.get('event')
-            iso_date = event.get('date_begin')
-            formatted_time = get_date_formatted_short(iso_date)
-            location = event.get('location')
-            location_name = location.get('name')
-            ticket_id = ticket.get('id')
-            keyboard.append(
-                [InlineKeyboardButton(f"{location_name} - {formatted_time}",
-                                      callback_data=f"ticketInfo_{ticket_id}")])
-        keyboard.append([InlineKeyboardButton("Back", callback_data="main_menu")])
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        await query.message.reply_text(f"Total bookings: {tickets_response.get('total')}", reply_markup=reply_markup)
+        await get_my_bookings(query, telegram_user_id)
 
     elif query.data.startswith("cancelTicket_"):
         ticket_id = query.data.split("_")[1]
-        await query.message.reply_text(f"Ticket {ticket_id} cancelled successfully")
+        result = ticket_cancel(telegram_user_id, ticket_id)
+        if result:
+            await query.message.reply_text("Ticket cancelled successfully")
+        else:
+            await query.message.reply_text(f"Could not cancel ticket. Please try again later.")
+        await get_my_bookings(query, telegram_user_id)
 
     elif query.data.startswith("ticketInfo_"):
         ticket_id = query.data.split("_")[1]
@@ -86,6 +77,23 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"Participants: {participants_count}/{max_participants}\nPlace: {location_name}\nAddress:{complete_address}\nDate: {formatted_time}",
             reply_markup=reply_markup)
 
+
+async def get_my_bookings(query, telegram_user_id):
+    tickets_response = tickets(telegram_user_id)
+    keyboard = []
+    for ticket in tickets_response.get('data', []):
+        event = ticket.get('event')
+        iso_date = event.get('date_begin')
+        formatted_time = get_date_formatted_short(iso_date)
+        location = event.get('location')
+        location_name = location.get('name')
+        ticket_id = ticket.get('id')
+        keyboard.append(
+            [InlineKeyboardButton(f"{location_name} - {formatted_time}",
+                                  callback_data=f"ticketInfo_{ticket_id}")])
+    keyboard.append([InlineKeyboardButton("Back", callback_data="main_menu")])
+    await query.message.reply_text(f"Total bookings: {tickets_response.get('total')}",
+                                   reply_markup=InlineKeyboardMarkup(keyboard))
 
 # Message handler for email and password input
 async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
