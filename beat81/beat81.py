@@ -8,6 +8,11 @@ from db_helper import init_db, save_user, get_user_by_user_id
 init_db()
 
 
+class UnauthorizedException(Exception):
+    """Custom exception to handle 401 Unauthorized errors."""
+    pass
+
+
 # API login function
 def login(telegram_user_id, email, password):
     url = "https://api.production.b81.io/api/authentication"  # The login API URL
@@ -27,7 +32,6 @@ def login(telegram_user_id, email, password):
             user_info = extract_data_from_jwt(token)
 
             if save_user(telegram_user_id=telegram_user_id, beat81_user_id=user_info['userId'], email=email,
-                         password=password,
                          token=token, first_name=user_info['given_name'], last_name=user_info['family_name'],
                          creation_time=datetime.now(), last_login_date=datetime.now()):
                 print(f"{email} saved to the database.")
@@ -47,7 +51,7 @@ def login(telegram_user_id, email, password):
 
 
 def tickets(telegram_user_id):
-    user = get_user_by_user_id(str(telegram_user_id))
+    user = get_user_by_user_id(telegram_user_id)
 
     url = "https://api.production.b81.io/api/tickets"
 
@@ -67,6 +71,8 @@ def tickets(telegram_user_id):
         if response.status_code == 200:
             tickets_data = response.json()
             return tickets_data
+        elif response.status_code == 401:
+            raise UnauthorizedException("401 Unauthorized: Invalid credentials or token.")
         else:
             print(f"Failed to fetch tickets: {response.status_code}: {response.text}")
             return None
@@ -76,7 +82,7 @@ def tickets(telegram_user_id):
         return None
 
 def ticket_cancel(telegram_user_id, ticket_id):
-    user = get_user_by_user_id(str(telegram_user_id))
+    user = get_user_by_user_id(telegram_user_id)
     url = "https://api.production.b81.io/api/tickets/" + ticket_id + "/status"
     payload = {
         "status_name": "cancelled"
@@ -94,7 +100,7 @@ def ticket_cancel(telegram_user_id, ticket_id):
         return False
 
 def ticket_info(telegram_user_id, ticket_id):
-    user = get_user_by_user_id(str(telegram_user_id))
+    user = get_user_by_user_id(telegram_user_id)
     url = "https://api.production.b81.io/api/tickets/" + ticket_id
     headers = {"Authorization": f"Bearer {user['token']}"}
     try:

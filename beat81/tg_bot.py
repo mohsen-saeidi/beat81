@@ -4,9 +4,10 @@ from dotenv import load_dotenv
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import CommandHandler, CallbackQueryHandler, MessageHandler, Application, ContextTypes, filters
 
-from beat81 import login, tickets, event_info, ticket_info, ticket_cancel
+from beat81 import login, tickets, ticket_info, ticket_cancel, UnauthorizedException
+from city_helper import City
 from date_helper import get_date_formatted_short
-from db_helper import get_user_by_user_id
+from db_helper import get_user_by_user_id, clear_token
 
 # Load token and other environment variables from .env file
 load_dotenv()
@@ -15,21 +16,9 @@ BOT_TOKEN = os.getenv("TG_TOKEN")  # This should match the key in your .env file
 # Dictionary to hold user data temporarily
 user_data = {}
 
-
 # Start command: Show a menu with options (like the Login button)
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Create a keyboard with a "Login" button
-    user_id = update.effective_user.id
-    user = get_user_by_user_id(str(user_id))
-    if user:
-        keyboard = main_menu()
-    else:
-        keyboard = [[InlineKeyboardButton("Login", callback_data="login")]]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-
-    # Send the message with Inline Keyboard
-    await update.message.reply_text("Choose an option below:", reply_markup=reply_markup)
-
+    await update.message.reply_text("Main menu", reply_markup=main_menu_keyboard(update.effective_user.id))
 
 # Callback for handling button clicks
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -39,7 +28,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     telegram_user_id = query.from_user.id
 
     if query.data == "main_menu":
-        await query.message.reply_text("Choose an option below:", reply_markup=InlineKeyboardMarkup(main_menu()))
+        await query.message.reply_text("Main menu", reply_markup=main_menu_keyboard(telegram_user_id))
 
     if query.data == "login":
         # Start the login process by asking for the email
@@ -77,9 +66,29 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"Participants: {participants_count}/{max_participants}\nPlace: {location_name}\nAddress:{complete_address}\nDate: {formatted_time}",
             reply_markup=reply_markup)
 
+    elif query.data.startswith("changeCity_"):
+        city = City[query.data.split("_")[1]]
+        user_data[telegram_user_id]['current_city'] = city
+        await query.message.reply_text(f"changed city to {city.value}")
+        await query.message.reply_text("Main menu", reply_markup=main_menu_keyboard(telegram_user_id))
+
+    elif query.data == "changeCity":
+        buttons = [
+            [InlineKeyboardButton(text=city.value, callback_data=f"changeCity_{city.name}")]
+            for city in City
+        ]
+
+        await query.message.reply_text(f"Select your city", reply_markup=InlineKeyboardMarkup(buttons))
+
 
 async def get_my_bookings(query, telegram_user_id):
-    tickets_response = tickets(telegram_user_id)
+    try:
+        tickets_response = tickets(telegram_user_id)
+    except UnauthorizedException:
+        clear_token(telegram_user_id)
+        await query.message.reply_text("Please login again.")
+        await query.message.reply_text("Main menu", reply_markup=main_menu_keyboard(telegram_user_id))
+        return
     keyboard = []
     for ticket in tickets_response.get('data', []):
         event = ticket.get('event')
@@ -97,42 +106,54 @@ async def get_my_bookings(query, telegram_user_id):
 
 # Message handler for email and password input
 async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
+    telegram_user_id = update.effective_user.id
 
     # Check if the user is in the middle of the login process
-    if user_id in user_data:
-        step = user_data[user_id].get("step")
+    if telegram_user_id in user_data:
+        step = user_data[telegram_user_id].get("step")
 
         if step == "email":
             # Save the email so we can ask for the password next
-            user_data[user_id]["email"] = update.message.text
-            user_data[user_id]["step"] = "password"
+            user_data[telegram_user_id]["email"] = update.message.text
+            user_data[telegram_user_id]["step"] = "password"
 
             await update.message.reply_text("Got it! Now enter your password:")
 
         elif step == "password":
             # Save the password and call the login API
-            user_data[user_id]["password"] = update.message.text
-            email = user_data[user_id]["email"]
-            password = user_data[user_id]["password"]
+            user_data[telegram_user_id]["password"] = update.message.text
+            email = user_data[telegram_user_id]["email"]
+            password = user_data[telegram_user_id]["password"]
 
             # Call the login API
-            login_success = login(user_id, email, password)
+            login_success = login(telegram_user_id, email, password)
 
             if login_success:
                 await update.message.reply_text("Login successful! 🎉")
+                await update.message.reply_text("Main menu", reply_markup=main_menu_keyboard(telegram_user_id))
             else:
                 await update.message.reply_text("Login failed. Please try again.")
 
             # Clear user data after login attempt
-            del user_data[user_id]
+            del user_data[telegram_user_id]
 
     else:
         await update.message.reply_text("Please click on the Login button to start the process.")
 
 
-def main_menu():
-    return [[InlineKeyboardButton("Get my bookings", callback_data="get_my_bookings")]]
+def main_menu_keyboard(telegram_user_id):
+    user = get_user_by_user_id(telegram_user_id)
+    if user and user.get('token'):
+        if telegram_user_id not in user_data:
+            user_data[telegram_user_id] = {}
+        if 'current_city' not in user_data[telegram_user_id]:
+            user_data[telegram_user_id]['current_city'] = City.munich
+        current_city = user_data[telegram_user_id]['current_city']
+        keyboard = [[InlineKeyboardButton("Get my bookings", callback_data="get_my_bookings")],
+                [InlineKeyboardButton(f"Change city(current: {current_city.value})", callback_data="changeCity")]]
+    else:
+        keyboard = [[InlineKeyboardButton("Login", callback_data="login")]]
+    return InlineKeyboardMarkup(keyboard)
 
 
 # Main function to run the bot
