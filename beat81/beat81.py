@@ -60,7 +60,6 @@ def tickets(telegram_user_id):
     params["$limit"] = '30'
 
     try:
-        # Make the GET request to fetch tickets with optional filters
         headers = {"Authorization": f"Bearer {user['token']}"}
         response = requests.get(url, params=params, headers=headers)
 
@@ -74,6 +73,40 @@ def tickets(telegram_user_id):
 
     except requests.exceptions.RequestException as e:
         print(f"Error while calling the tickets API: {e}")
+        return None
+
+def ticket_cancel(telegram_user_id, ticket_id):
+    user = get_user_by_user_id(str(telegram_user_id))
+    url = "https://api.production.b81.io/api/tickets/" + ticket_id + "/status"
+    payload = {
+        "status_name": "cancelled"
+    }
+    headers = {"Authorization": f"Bearer {user['token']}"}
+    try:
+        response = requests.post(url, json=payload, headers=headers)
+        if response.status_code == 200:
+            return True
+        else:
+            print(f"Failed to cancel ticket: {response.status_code}: {response.text}")
+            return False
+    except requests.exceptions.RequestException as e:
+        print(f"Error while calling the cancel ticket API: {e}")
+        return False
+
+def ticket_info(telegram_user_id, ticket_id):
+    user = get_user_by_user_id(str(telegram_user_id))
+    url = "https://api.production.b81.io/api/tickets/" + ticket_id
+    headers = {"Authorization": f"Bearer {user['token']}"}
+    try:
+        response = requests.get(url, headers=headers)
+        if response.status_code == 200:
+            ticket_data = response.json()
+            return ticket_data
+        else:
+            print(f"Failed to get ticket: {response.status_code}: {response.text}")
+            return None
+    except requests.exceptions.RequestException as e:
+        print(f"Error while calling the ticket API: {e}")
         return None
 
 def event_info(event_id):
