@@ -3,7 +3,8 @@ from datetime import datetime, timedelta
 import jwt
 import requests
 
-from beat81.date_helper import next_date_to_day
+from beat81.city_helper import City
+from beat81.date_helper import next_date_to_day, get_date_from_string, get_date_after
 from beat81.db_helper import init_db, save_user, get_user_by_user_id
 
 init_db()
@@ -156,19 +157,21 @@ def register_event(event_id, telegram_user_id):
         return None
 
 
-def events(dayOfWeek, city):
+def events(city, dayOfWeek=None, start_date=None, end_date=None, limit=200):
     url = "https://api.production.b81.io/api/events/"
     date = next_date_to_day(dayOfWeek)
+    date_gte = start_date if start_date else date
+    date_lte = end_date if end_date else date + timedelta(days=1)
 
     params = {}
     params["$sort[date_begin]"] = '1'
-    params["date_begin_gte"] = date
-    params["date_begin_lte"] = date + timedelta(days=1)
+    params["date_begin_gte"] = date_gte
+    params["date_begin_lte"] = date_lte
     params["$sort[coach_id]"] = '1'
     params["is_published"] = 'true'
     params["status_ne"] = 'cancelled'
     params["location_city_code"] = city.name
-    params["$limit"] = '200'
+    params["$limit"] = limit
 
     try:
         response = requests.get(url, params=params)
@@ -181,6 +184,23 @@ def events(dayOfWeek, city):
     except requests.exceptions.RequestException as e:
         print(f"Error while calling the event API: {e}")
         return None
+
+
+def register_series(event_id, telegram_user_id):
+    event_data = register_event(event_id, telegram_user_id).get('data')
+    next_event = find_next_event(event_id)
+    next_event_date = get_date_from_string(next_event.get('date_begin'))
+    if next_event_date > get_date_after(21):
+        return event_data
+    else:
+        return register_series(next_event.get('id'), telegram_user_id)
+
+
+def find_next_event(event_id):
+    event_data = event_info(event_id).get('data')
+    date = get_date_from_string(event_data.get('date_begin')) + timedelta(days=7)
+    city = City[event_data.get('location').get('city_code')]
+    return events(city, start_date=date, end_date=date, limit=1).get('data')[0]
 
 
 def extract_data_from_jwt(jwt_token, secret_key=None):

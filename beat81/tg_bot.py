@@ -5,7 +5,7 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import CommandHandler, CallbackQueryHandler, MessageHandler, Application, ContextTypes, filters
 
 from beat81.beat81_api import login, tickets, ticket_info, ticket_cancel, UnauthorizedException, events, event_info, \
-    register_event
+    register_event, register_series
 from beat81.city_helper import City
 from beat81.date_helper import get_date_formatted_day_hour, DaysOfWeek, get_date_formatted_hour, get_weekday_form_date
 from beat81.db_helper import get_user_by_user_id, clear_token
@@ -97,6 +97,10 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             await query.message.reply_text("Something went wrong. Please try again later.", callback_data='main_menu')
 
+    elif query.data.startswith("registerEventSeries_"):
+        event_id = query.data.split("_")[1]
+        register_series(event_id, telegram_user_id)
+
 
     elif query.data.startswith("changeCity_"):
         city = City[query.data.split("_")[1]]
@@ -122,7 +126,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif query.data in [day.name for day in DaysOfWeek]:
         day = DaysOfWeek[query.data]
-        all_events = events(day, await get_user_city(telegram_user_id))
+        all_events = events(await get_user_city(telegram_user_id), day)
         all_events_data = all_events.get('data')
         keyboard = []
         keyboard_row = []

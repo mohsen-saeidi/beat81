@@ -1,6 +1,7 @@
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta, date, timezone
 from enum import Enum
 from zoneinfo import ZoneInfo
+
 
 class DaysOfWeek(Enum):
     monday = ["Monday", 0]
@@ -12,23 +13,37 @@ class DaysOfWeek(Enum):
     sunday = ["Sunday", 6]
 
 
+def get_date_from_string(iso_date):
+    return datetime.fromisoformat(iso_date)
+
+
 def get_date_formatted_day_hour(iso_date):
     date_begin = get_date_cet(iso_date)
     return date_begin.strftime("%A %d %b %-I:%M %p")
+
 
 def get_date_formatted_hour(iso_date):
     date_begin = get_date_cet(iso_date)
     return date_begin.strftime("%H:%M")
 
+
+def get_date_after(days):
+    return datetime.now(timezone.utc) + timedelta(days=days)
+
+
 def get_date_cet(iso_date):
     date_begin_utc = datetime.strptime(iso_date, "%Y-%m-%dT%H:%M:%S.%fZ").replace(tzinfo=ZoneInfo("UTC"))
     return date_begin_utc.astimezone(ZoneInfo("Europe/Berlin"))
+
 
 def get_weekday_form_date(iso_date):
     date_begin = get_date_cet(iso_date)
     return date_begin.strftime("%A").lower()
 
+
 def next_date_to_day(day_of_week):
+    if day_of_week is None:
+        return None
     current_date = date.today()
     current_day_idx = current_date.weekday()
     target_day_idx = day_of_week.value[1]
@@ -41,4 +56,3 @@ def next_date_to_day(day_of_week):
     next_date = current_date + timedelta(days=days_ahead)
 
     return next_date
-
