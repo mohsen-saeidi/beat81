@@ -82,6 +82,7 @@ def tickets(telegram_user_id):
         print(f"Error while calling the tickets API: {e}")
         return None
 
+
 def ticket_cancel(telegram_user_id, ticket_id):
     user = get_user_by_user_id(telegram_user_id)
     url = "https://api.production.b81.io/api/tickets/" + ticket_id + "/status"
@@ -100,6 +101,7 @@ def ticket_cancel(telegram_user_id, ticket_id):
         print(f"Error while calling the cancel ticket API: {e}")
         return False
 
+
 def ticket_info(telegram_user_id, ticket_id):
     user = get_user_by_user_id(telegram_user_id)
     url = "https://api.production.b81.io/api/tickets/" + ticket_id
@@ -116,6 +118,7 @@ def ticket_info(telegram_user_id, ticket_id):
         print(f"Error while calling the ticket API: {e}")
         return None
 
+
 def event_info(event_id):
     url = "https://api.production.b81.io/api/events/" + event_id
 
@@ -131,6 +134,28 @@ def event_info(event_id):
         print(f"Error while calling the event API: {e}")
         return None
 
+
+def register_event(event_id, telegram_user_id):
+    user = get_user_by_user_id(telegram_user_id)
+    url = "https://api.production.b81.io/api/tickets"
+    payload = {
+        "event_id": event_id,
+        "user_id": user['beat81_user_id']
+    }
+    headers = {"Authorization": f"Bearer {user['token']}"}
+    try:
+        response = requests.post(url, json=payload, headers=headers)
+        if response.status_code == 200:
+            register_data = response.json()
+            return register_data
+        else:
+            print(f"Failed to register event: {response.status_code}: {response.text}")
+            return None
+    except requests.exceptions.RequestException as e:
+        print(f"Error while calling the tickets API: {e}")
+        return None
+
+
 def events(dayOfWeek, city):
     url = "https://api.production.b81.io/api/events/"
     date = next_date_to_day(dayOfWeek)
@@ -145,7 +170,6 @@ def events(dayOfWeek, city):
     params["location_city_code"] = city.name
     params["$limit"] = '200'
 
-
     try:
         response = requests.get(url, params=params)
         if response.status_code == 200:
@@ -157,6 +181,7 @@ def events(dayOfWeek, city):
     except requests.exceptions.RequestException as e:
         print(f"Error while calling the event API: {e}")
         return None
+
 
 def extract_data_from_jwt(jwt_token, secret_key=None):
     try:

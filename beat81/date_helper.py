@@ -24,6 +24,10 @@ def get_date_cet(iso_date):
     date_begin_utc = datetime.strptime(iso_date, "%Y-%m-%dT%H:%M:%S.%fZ").replace(tzinfo=ZoneInfo("UTC"))
     return date_begin_utc.astimezone(ZoneInfo("Europe/Berlin"))
 
+def get_weekday_form_date(iso_date):
+    date_begin = get_date_cet(iso_date)
+    return date_begin.strftime("%A").lower()
+
 def next_date_to_day(day_of_week):
     current_date = date.today()
     current_day_idx = current_date.weekday()

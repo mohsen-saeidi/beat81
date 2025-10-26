@@ -4,9 +4,10 @@ from dotenv import load_dotenv
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import CommandHandler, CallbackQueryHandler, MessageHandler, Application, ContextTypes, filters
 
-from beat81.beat81_api import login, tickets, ticket_info, ticket_cancel, UnauthorizedException, events
+from beat81.beat81_api import login, tickets, ticket_info, ticket_cancel, UnauthorizedException, events, event_info, \
+    register_event
 from beat81.city_helper import City
-from beat81.date_helper import get_date_formatted_day_hour, DaysOfWeek, get_date_formatted_hour
+from beat81.date_helper import get_date_formatted_day_hour, DaysOfWeek, get_date_formatted_hour, get_weekday_form_date
 from beat81.db_helper import get_user_by_user_id, clear_token
 
 # Load token and other environment variables from .env file
@@ -68,6 +69,35 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"Participants: {participants_count}/{max_participants}\nPlace: {location_name}\nAddress:{complete_address}\nDate: {formatted_time}",
             reply_markup=reply_markup)
 
+    elif query.data.startswith("eventInfo_"):
+        event_id = query.data.split("_")[1]
+        event = event_info(event_id).get('data')
+        iso_date = event.get('date_begin')
+        formatted_time = get_date_formatted_day_hour(iso_date)
+        location = event.get('location')
+        location_name = location.get('name')
+        max_participants = event.get('max_participants')
+        participants_count = event.get('participants_count')
+        address = location.get('address')
+        complete_address = f"{address.get('address1')}, {address.get('zip')}"
+        keyboard = [[InlineKeyboardButton("Register once", callback_data=f"registerEventOnce_{event_id}")],
+                    [InlineKeyboardButton("Register series", callback_data=f"registerEventSeries_{event_id}")],
+                    [InlineKeyboardButton("Back", callback_data=f"{get_weekday_form_date(iso_date)}")]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await query.message.reply_text(
+            f"Participants: {participants_count}/{max_participants}\nPlace: {location_name}\nAddress:{complete_address}\nDate: {formatted_time}",
+            reply_markup=reply_markup)
+
+    elif query.data.startswith("registerEventOnce_"):
+        event_id = query.data.split("_")[1]
+        register_data = register_event(event_id, telegram_user_id).get('data')
+        current_status = register_data.get('current_status').get('status_name')
+        if current_status == 'booked':
+            await query.message.reply_text("Session booked successfully", callback_data='main_menu')
+        else:
+            await query.message.reply_text("Something went wrong. Please try again later.", callback_data='main_menu')
+
+
     elif query.data.startswith("changeCity_"):
         city = City[query.data.split("_")[1]]
         user_data[telegram_user_id]['current_city'] = city
@@ -80,7 +110,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             for city in City
         ]
 
-        await query.message.reply_text(f"Select your city", reply_markup=InlineKeyboardMarkup(buttons))
+        await query.message.reply_text("Select your city", reply_markup=InlineKeyboardMarkup(buttons))
 
     elif query.data == "show_week_classes":
         buttons = [
@@ -92,7 +122,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif query.data in [day.name for day in DaysOfWeek]:
         day = DaysOfWeek[query.data]
-        all_events = events(day, user_data[telegram_user_id]['current_city'])
+        all_events = events(day, await get_user_city(telegram_user_id))
         all_events_data = all_events.get('data')
         keyboard = []
         keyboard_row = []
@@ -104,7 +134,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             formatted_time = get_date_formatted_hour(iso_date)
             keyboard_row.append(
                 InlineKeyboardButton(f"{location_name} {formatted_time}",
-                                      callback_data=f"ticketInfo_{event.get('id')}"))
+                                     callback_data=f"eventInfo_{event.get('id')}"))
             if counter % 2 == 0:
                 keyboard.append(keyboard_row)
                 keyboard_row = []
@@ -113,7 +143,12 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if keyboard_row:
             keyboard.append(keyboard_row)
         keyboard.append([InlineKeyboardButton("Back", callback_data="show_week_classes")])
-        await query.message.reply_text(f"{day.value[0]} classes, total: {all_events.get('total')}", reply_markup=InlineKeyboardMarkup(keyboard))
+        await query.message.reply_text(f"{day.value[0]} classes, total: {all_events.get('total')}",
+                                       reply_markup=InlineKeyboardMarkup(keyboard))
+
+
+async def get_user_city(telegram_user_id):
+    return user_data.get(telegram_user_id, {}).get('current_city') or City.munich
 
 
 async def get_my_bookings(query, telegram_user_id):
