@@ -5,5 +5,9 @@ services:
         - .env
     image: saeidimohsen/beat81:latest
     restart: unless-stopped
+    pull_policy: always
     volumes:
-      - ./data:/app/data
+      - data-volume:/app/data
+
+volumes:
+  data-volume:
