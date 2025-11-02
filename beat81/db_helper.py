@@ -3,7 +3,7 @@ import sqlite3
 from datetime import datetime
 
 # Define the directory and file for the database
-DATA_DIRECTORY = "../data"
+DATA_DIRECTORY = "data"
 DATABASE_FILE = os.path.join(DATA_DIRECTORY, "user_data.db")
 
 # Ensure the data directory exists

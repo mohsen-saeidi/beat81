@@ -7,7 +7,4 @@ services:
     restart: unless-stopped
     pull_policy: always
     volumes:
-      - data-volume:/app/data
-
-volumes:
-  data-volume:
+      - ./data:/app/data
