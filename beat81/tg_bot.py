@@ -58,7 +58,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     [InlineKeyboardButton("Back", callback_data="get_my_subscriptions")]]
         reply_markup = InlineKeyboardMarkup(keyboard)
         await query.message.reply_text(
-            f"id: {subscription_id}\nLocation: {location_name}\nDay of week: {day_of_week}\nTime: {time}",
+            f"Location: {location_name}\nDay of week: {day_of_week}\nTime: {time}",
             reply_markup=reply_markup)
 
     elif query.data.startswith("cancelSubscription_"):
