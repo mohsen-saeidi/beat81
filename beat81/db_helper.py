@@ -34,7 +34,7 @@ def init_db():
             CREATE TABLE IF NOT EXISTS subscriptions (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 user_id INTEGER NOT NULL,
-                telegram_user_id TEXT NOT NULL UNIQUE,
+                telegram_user_id TEXT NOT NULL,
                 location_id TEXT NOT NULL,
                 city TEXT NOT NULL,
                 day_of_week TEXT NOT NULL,
