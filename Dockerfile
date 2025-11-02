@@ -9,4 +9,6 @@ RUN pip install -r requirements.txt
 # Ensure the data directory exists inside the container
 RUN mkdir -p /app/data
 
+ENV PYTHONPATH=/app
+
 CMD ["python", "beat81/tg_bot.py"]
