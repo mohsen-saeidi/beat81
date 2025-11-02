@@ -5,10 +5,10 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import CommandHandler, CallbackQueryHandler, MessageHandler, Application, ContextTypes, filters
 
 from beat81.beat81_api import login, tickets, ticket_info, ticket_cancel, UnauthorizedException, events, event_info, \
-    register_event, register_series
+    register_event, register_series, location_info
 from beat81.city_helper import City
 from beat81.date_helper import get_date_formatted_day_hour, DaysOfWeek, get_date_formatted_hour, get_weekday_form_date
-from beat81.db_helper import get_user_by_user_id, clear_token
+from beat81.db_helper import get_user_by_user_id, clear_token, get_user_subscriptions
 from beat81.job_schedule import init_scheduler
 
 # Load token and other environment variables from .env file
@@ -41,6 +41,9 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif query.data == "get_my_bookings":
         await get_my_bookings(query, telegram_user_id)
+
+    elif query.data == "get_my_subscriptions":
+        await get_my_subscriptions(query, telegram_user_id)
 
     elif query.data.startswith("cancelTicket_"):
         ticket_id = query.data.split("_")[1]
@@ -187,6 +190,23 @@ async def get_my_bookings(query, telegram_user_id):
     await query.message.reply_text(f"Total bookings: {tickets_response.get('total')}",
                                    reply_markup=InlineKeyboardMarkup(keyboard))
 
+async def get_my_subscriptions(query, telegram_user_id):
+    subscriptions = get_user_subscriptions(telegram_user_id)
+    keyboard = []
+    for subscription in subscriptions:
+        subscription_id = subscription.get('id')
+        location_id = subscription.get('location_id')
+        location_data = location_info(location_id).get('data')
+        location_name = location_data.get('name')
+        time = subscription.get('time')
+        day_of_week = subscription.get('day_of_week')
+        keyboard.append(
+            [InlineKeyboardButton(f"{location_name} - {day_of_week} - {time}",
+                                  callback_data=f"subscriptionInfo_{subscription_id}")])
+        keyboard.append([InlineKeyboardButton("Back", callback_data="main_menu")])
+        await query.message.reply_text(f"Total subscriptions: {len(subscriptions)}",
+                                       reply_markup=InlineKeyboardMarkup(keyboard))
+
 
 # Message handler for email and password input
 async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -234,6 +254,7 @@ def main_menu_keyboard(telegram_user_id):
             user_data[telegram_user_id]['current_city'] = City.munich
         current_city = user_data[telegram_user_id]['current_city']
         keyboard = [[InlineKeyboardButton("Get my bookings", callback_data="get_my_bookings")],
+                    [InlineKeyboardButton("Get my subscriptions", callback_data="get_my_subscriptions")],
                     [InlineKeyboardButton("Show week classes", callback_data="show_week_classes")],
                     [InlineKeyboardButton(f"Change city(current: {current_city.value})", callback_data="changeCity")]]
     else:

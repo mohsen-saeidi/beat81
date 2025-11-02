@@ -140,7 +140,45 @@ def get_all_subscriptions():
             SELECT * FROM subscriptions
             ''')
 
-            return cursor.fetchall()
+            subscriptions = cursor.fetchall()
+
+
+    except Exception as e:
+        print(f"An error occurred while fetching subscriptions: {e}")
+        return None
+
+def get_user_subscriptions(telegram_user_id):
+    try:
+        with sqlite3.connect(DATABASE_FILE) as conn:
+            cursor = conn.cursor()
+
+            # Query to fetch user details by email
+            cursor.execute('''
+            SELECT * FROM subscriptions WHERE telegram_user_id = ?
+            ''', (telegram_user_id,))
+
+            return fetchall_as_json(cursor)
+
+    except Exception as e:
+        print(f"An error occurred while fetching subscriptions: {e}")
+        return None
+
+def get_subscription(telegram_user_id, location_id, city, day_of_week, time):
+    try:
+        with sqlite3.connect(DATABASE_FILE) as conn:
+            cursor = conn.cursor()
+
+            # Query to fetch user details by email
+            cursor.execute('''
+            SELECT * FROM subscriptions WHERE telegram_user_id = ? AND location_id = ? AND city = ? AND day_of_week = ? AND time = ?
+            ''', (telegram_user_id, location_id, city.name, day_of_week, time))
+
+            subscription = cursor.fetchone()
+
+            if subscription:
+                return get_subscription_data(subscription)
+            else:
+                return None
 
     except Exception as e:
         print(f"An error occurred while fetching subscriptions: {e}")
@@ -172,3 +210,20 @@ def get_user(user):
         "creation_time": user[7],
         "last_login_date": user[8]
     }
+
+def get_subscription_data(subscription):
+    return {
+        "id": subscription[0],
+        "user_id": subscription[1],
+        "telegram_user_id": subscription[2],
+        "location_id": subscription[3],
+        "city": subscription[4],
+        "day_of_week": subscription[5],
+        "time": subscription[6],
+        "creation_time": subscription[7]
+    }
+
+def fetchall_as_json(cursor):
+    rows = cursor.fetchall()
+    columns = [desc[0] for desc in cursor.description]
+    return [dict(zip(columns, row)) for row in rows]

@@ -20,7 +20,7 @@ class UnauthorizedException(Exception):
 def login(telegram_user_id, email, password):
     url = "https://api.production.b81.io/api/authentication"  # The login API URL
     payload = {
-        "email": email,
+        "email": email.lower(),
         "password": password,
         "strategy": "local"
     }
@@ -133,6 +133,22 @@ def event_info(event_id):
             return None
     except requests.exceptions.RequestException as e:
         print(f"Error while calling the event API: {e}")
+        return None
+
+
+def location_info(location_id):
+    url = "https://api.production.b81.io/api/locations/" + location_id
+
+    try:
+        response = requests.get(url)
+        if response.status_code == 200:
+            location_data = response.json()
+            return location_data
+        else:
+            print(f"Failed to fetch location: {response.status_code}: {response.text}")
+            return None
+    except requests.exceptions.RequestException as e:
+        print(f"Error while calling the location API: {e}")
         return None
 
 
