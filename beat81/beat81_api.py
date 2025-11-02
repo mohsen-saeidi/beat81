@@ -34,8 +34,7 @@ def login(telegram_user_id, email, password):
             user_info = extract_data_from_jwt(token)
 
             if save_user(telegram_user_id=telegram_user_id, beat81_user_id=user_info['userId'], email=email,
-                         token=token, first_name=user_info['given_name'], last_name=user_info['family_name'],
-                         creation_time=datetime.now(), last_login_date=datetime.now()):
+                         token=token, first_name=user_info['given_name'], last_name=user_info['family_name']):
                 print(f"{email} saved to the database.")
             else:
                 print(f"{email} already exists in the database.")
@@ -187,20 +186,22 @@ def events(city, dayOfWeek=None, start_date=None, end_date=None, limit=200):
 
 
 def register_series(event_id, telegram_user_id):
-    event_data = register_event(event_id, telegram_user_id).get('data')
+    event_data = register_event(event_id, telegram_user_id)
     next_event = find_next_event(event_id)
     next_event_date = get_date_from_string(next_event.get('date_begin'))
     if next_event_date > get_date_after(21):
-        return event_data
+        return event_data.get('data')
     else:
         return register_series(next_event.get('id'), telegram_user_id)
 
 
 def find_next_event(event_id):
     event_data = event_info(event_id).get('data')
+    location_id = event_data.get('location_id')
     date = get_date_from_string(event_data.get('date_begin')) + timedelta(days=7)
     city = City[event_data.get('location').get('city_code')]
-    return events(city, start_date=date, end_date=date, limit=1).get('data')[0]
+    all_events = events(city, start_date=date, end_date=date, limit=10).get('data')
+    return [event for event in all_events if event.get('location_id') == location_id][0]
 
 
 def extract_data_from_jwt(jwt_token, secret_key=None):

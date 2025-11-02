@@ -1,5 +1,6 @@
-import sqlite3
 import os
+import sqlite3
+from datetime import datetime
 
 # Define the directory and file for the database
 DATA_DIRECTORY = "../data"
@@ -13,30 +14,46 @@ if not os.path.exists(DATA_DIRECTORY):
 def init_db():
     with sqlite3.connect(DATABASE_FILE) as conn:
         cursor = conn.cursor()
+        cursor.execute("PRAGMA foreign_keys = ON;")
+
         cursor.execute('''
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            telegram_user_id TEXT NOT NULL UNIQUE,
-            beat81_user_id TEXT NOT NULL UNIQUE,
-            email TEXT NOT NULL UNIQUE,
-            token TEXT,
-            first_name TEXT,
-            last_name TEXT,
-            creation_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            last_login_date TIMESTAMP 
-        )
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                telegram_user_id TEXT NOT NULL UNIQUE,
+                beat81_user_id TEXT NOT NULL UNIQUE,
+                email TEXT NOT NULL UNIQUE,
+                token TEXT,
+                first_name TEXT,
+                last_name TEXT,
+                creation_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                last_login_date TIMESTAMP 
+            )
+        ''')
+
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS subscriptions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                telegram_user_id TEXT NOT NULL UNIQUE,
+                event_id TEXT NOT NULL,
+                creation_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users (user_id)
+                UNIQUE (user_id, event_id)
+            )
         ''')
         conn.commit()  # Save changes
 
 
-def save_user(telegram_user_id, beat81_user_id, email, token, first_name, last_name, creation_time, last_login_date):
+def save_user(telegram_user_id, beat81_user_id, email, token, first_name, last_name, creation_time=datetime.now(),
+              last_login_date=datetime.now()):
     try:
         with sqlite3.connect(DATABASE_FILE) as conn:
             cursor = conn.cursor()
             cursor.execute('''
             INSERT INTO users (telegram_user_id, beat81_user_id, email, token, first_name, last_name, creation_time, last_login_date)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (telegram_user_id, beat81_user_id, email, token, first_name, last_name, creation_time, last_login_date))
+            ''', (
+                telegram_user_id, beat81_user_id, email, token, first_name, last_name, creation_time, last_login_date))
             conn.commit()  # Save changes
             print(f"User {email} saved successfully.")
             return True
@@ -44,6 +61,24 @@ def save_user(telegram_user_id, beat81_user_id, email, token, first_name, last_n
         # If the email already exists
         print(f"User {email} already exists in the database.")
         return False
+
+
+def save_subscription(telegram_user_id, event_id, creation_time=datetime.now()):
+    user = get_user_by_user_id(telegram_user_id)
+    try:
+        with sqlite3.connect(DATABASE_FILE) as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+            INSERT INTO subscriptions (user_id, telegram_user_id, event_id, creation_time)
+            VALUES (?, ?, ?, ?)
+            ''', (user['id'], telegram_user_id, event_id, creation_time))
+            conn.commit()  # Save changes
+            return True
+    except sqlite3.IntegrityError:
+        # If the email already exists
+        print(f"Subscription {user['id']} and {event_id} already exists in the database.")
+        return False
+
 
 def get_user_by_email(email):
     try:
@@ -66,6 +101,7 @@ def get_user_by_email(email):
     except Exception as e:
         print(f"An error occurred while fetching user by email: {e}")
         return None
+
 
 def get_user_by_user_id(telegram_user_id):
     telegram_user_id = str(telegram_user_id)
@@ -90,6 +126,7 @@ def get_user_by_user_id(telegram_user_id):
         print(f"An error occurred while fetching user by telegram_user_id: {e}")
         return None
 
+
 def clear_token(telegram_user_id):
     try:
         with sqlite3.connect(DATABASE_FILE) as conn:
@@ -101,6 +138,7 @@ def clear_token(telegram_user_id):
     except Exception as e:
         print(f"An error occurred while clearing token: {e}")
         return False
+
 
 def get_user(user):
     return {

@@ -8,7 +8,7 @@ from beat81.beat81_api import login, tickets, ticket_info, ticket_cancel, Unauth
     register_event, register_series
 from beat81.city_helper import City
 from beat81.date_helper import get_date_formatted_day_hour, DaysOfWeek, get_date_formatted_hour, get_weekday_form_date
-from beat81.db_helper import get_user_by_user_id, clear_token
+from beat81.db_helper import get_user_by_user_id, clear_token, save_subscription
 
 # Load token and other environment variables from .env file
 load_dotenv()
@@ -99,7 +99,12 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif query.data.startswith("registerEventSeries_"):
         event_id = query.data.split("_")[1]
-        register_series(event_id, telegram_user_id)
+        save_subscription(telegram_user_id, event_id)
+        event = register_series(event_id, telegram_user_id)
+        if event:
+            await query.message.reply_text("Series booked successfully", callback_data='main_menu')
+        else:
+            await query.message.reply_text("Something went wrong. Please try again later.", callback_data='main_menu')
 
 
     elif query.data.startswith("changeCity_"):
