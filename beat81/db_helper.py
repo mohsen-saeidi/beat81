@@ -25,8 +25,8 @@ def init_db():
                 token TEXT,
                 first_name TEXT,
                 last_name TEXT,
-                creation_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                last_login_date TIMESTAMP 
+                creation_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+                last_login_date DATETIME 
             )
         ''')
 
@@ -35,10 +35,13 @@ def init_db():
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 user_id INTEGER NOT NULL,
                 telegram_user_id TEXT NOT NULL UNIQUE,
-                event_id TEXT NOT NULL,
-                creation_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (user_id) REFERENCES users (user_id)
-                UNIQUE (user_id, event_id)
+                location_id TEXT NOT NULL,
+                city TEXT NOT NULL,
+                day_of_week TEXT NOT NULL,
+                time TEXT NOT NULL,
+                creation_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users (user_id),
+                UNIQUE (user_id, location_id, day_of_week, time)
             )
         ''')
         conn.commit()  # Save changes
@@ -63,20 +66,20 @@ def save_user(telegram_user_id, beat81_user_id, email, token, first_name, last_n
         return False
 
 
-def save_subscription(telegram_user_id, event_id, creation_time=datetime.now()):
+def save_subscription(telegram_user_id, location_id, city, day_of_week, time, creation_time=datetime.now()):
     user = get_user_by_user_id(telegram_user_id)
     try:
         with sqlite3.connect(DATABASE_FILE) as conn:
             cursor = conn.cursor()
             cursor.execute('''
-            INSERT INTO subscriptions (user_id, telegram_user_id, event_id, creation_time)
-            VALUES (?, ?, ?, ?)
-            ''', (user['id'], telegram_user_id, event_id, creation_time))
+            INSERT INTO subscriptions (user_id, telegram_user_id, location_id, city, day_of_week, time, creation_time)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            ''', (user['id'], telegram_user_id, location_id, city.name, day_of_week, time, creation_time))
             conn.commit()  # Save changes
             return True
     except sqlite3.IntegrityError:
         # If the email already exists
-        print(f"Subscription {user['id']} and {event_id} already exists in the database.")
+        print(f"Subscription {user['id']}, {location_id}, {day_of_week}, {time} already exists in the database.")
         return False
 
 
@@ -124,6 +127,23 @@ def get_user_by_user_id(telegram_user_id):
                 return None
     except Exception as e:
         print(f"An error occurred while fetching user by telegram_user_id: {e}")
+        return None
+
+
+def get_all_subscriptions():
+    try:
+        with sqlite3.connect(DATABASE_FILE) as conn:
+            cursor = conn.cursor()
+
+            # Query to fetch user details by email
+            cursor.execute('''
+            SELECT * FROM subscriptions
+            ''')
+
+            return cursor.fetchall()
+
+    except Exception as e:
+        print(f"An error occurred while fetching subscriptions: {e}")
         return None
 
 

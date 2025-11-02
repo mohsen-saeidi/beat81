@@ -8,7 +8,8 @@ from beat81.beat81_api import login, tickets, ticket_info, ticket_cancel, Unauth
     register_event, register_series
 from beat81.city_helper import City
 from beat81.date_helper import get_date_formatted_day_hour, DaysOfWeek, get_date_formatted_hour, get_weekday_form_date
-from beat81.db_helper import get_user_by_user_id, clear_token, save_subscription
+from beat81.db_helper import get_user_by_user_id, clear_token
+from beat81.job_schedule import init_scheduler
 
 # Load token and other environment variables from .env file
 load_dotenv()
@@ -93,18 +94,21 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         register_data = register_event(event_id, telegram_user_id).get('data')
         current_status = register_data.get('current_status').get('status_name')
         if current_status == 'booked':
-            await query.message.reply_text("Session booked successfully", callback_data='main_menu')
+            await query.message.reply_text("Session booked successfully",
+                                           reply_markup=main_menu_keyboard(telegram_user_id))
         else:
-            await query.message.reply_text("Something went wrong. Please try again later.", callback_data='main_menu')
+            await query.message.reply_text("Something went wrong. Please try again later.",
+                                           reply_markup=main_menu_keyboard(telegram_user_id))
 
     elif query.data.startswith("registerEventSeries_"):
         event_id = query.data.split("_")[1]
-        save_subscription(telegram_user_id, event_id)
-        event = register_series(event_id, telegram_user_id)
-        if event:
-            await query.message.reply_text("Series booked successfully", callback_data='main_menu')
+        register_data = register_series(event_id, telegram_user_id)
+        if register_data:
+            await query.message.reply_text("Series booked successfully",
+                                           reply_markup=main_menu_keyboard(telegram_user_id))
         else:
-            await query.message.reply_text("Something went wrong. Please try again later.", callback_data='main_menu')
+            await query.message.reply_text("Something went wrong. Please try again later.",
+                                           reply_markup=main_menu_keyboard(telegram_user_id))
 
 
     elif query.data.startswith("changeCity_"):
@@ -251,6 +255,7 @@ if __name__ == "__main__":
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CallbackQueryHandler(button_handler))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, message_handler))
+    init_scheduler()
 
     # Start the bot
     application.run_polling()

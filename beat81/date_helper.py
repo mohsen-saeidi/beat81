@@ -56,3 +56,10 @@ def next_date_to_day(day_of_week):
     next_date = current_date + timedelta(days=days_ahead)
 
     return next_date
+
+
+def next_date_time_weekday(day_of_week, hour, minute, second=0):
+    next_date = next_date_to_day(day_of_week)
+    next_date_time = datetime(next_date.year, next_date.month, next_date.day, hour, minute, second).astimezone(
+        ZoneInfo("UTC"))
+    return next_date_time

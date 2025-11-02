@@ -4,8 +4,9 @@ import jwt
 import requests
 
 from beat81.city_helper import City
-from beat81.date_helper import next_date_to_day, get_date_from_string, get_date_after
-from beat81.db_helper import init_db, save_user, get_user_by_user_id
+from beat81.date_helper import next_date_to_day, get_date_from_string, get_date_after, get_weekday_form_date, \
+    get_date_formatted_hour
+from beat81.db_helper import init_db, save_user, get_user_by_user_id, save_subscription
 
 init_db()
 
@@ -186,20 +187,27 @@ def events(city, dayOfWeek=None, start_date=None, end_date=None, limit=200):
 
 
 def register_series(event_id, telegram_user_id):
-    event_data = register_event(event_id, telegram_user_id)
-    next_event = find_next_event(event_id)
-    next_event_date = get_date_from_string(next_event.get('date_begin'))
-    if next_event_date > get_date_after(21):
-        return event_data.get('data')
-    else:
-        return register_series(next_event.get('id'), telegram_user_id)
-
-
-def find_next_event(event_id):
     event_data = event_info(event_id).get('data')
     location_id = event_data.get('location_id')
-    date = get_date_from_string(event_data.get('date_begin')) + timedelta(days=7)
+    iso_date = event_data.get('date_begin')
+    day_of_week = get_weekday_form_date(iso_date)
+    time = get_date_formatted_hour(iso_date)
     city = City[event_data.get('location').get('city_code')]
+    save_subscription(telegram_user_id, location_id, city, day_of_week, time)
+    date = get_date_from_string(event_data.get('date_begin'))
+    return register_recursive(event_id, telegram_user_id, city, location_id, date)
+
+
+def register_recursive(event_id, telegram_user_id, city, location_id, date):
+    register_data = register_event(event_id, telegram_user_id).get('data')
+    next_date = date + timedelta(days=7)
+    if next_date > get_date_after(21):
+        return register_data
+    next_event = find_next_event(city, location_id, next_date)
+    return register_recursive(next_event.get('id'), telegram_user_id, city, location_id, next_date)
+
+
+def find_next_event(city, location_id, date):
     all_events = events(city, start_date=date, end_date=date, limit=10).get('data')
     return [event for event in all_events if event.get('location_id') == location_id][0]
 
