@@ -1,5 +1,6 @@
 requests
 apscheduler
+pytz
 PyJWT
 python-dotenv
 python-telegram-bot

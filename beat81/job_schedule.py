@@ -1,6 +1,6 @@
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
-
+from pytz import utc
 from beat81.beat81_api import register_recursive, find_next_event
 from beat81.city_helper import City
 from beat81.date_helper import DaysOfWeek, next_date_time_weekday
@@ -23,6 +23,6 @@ def job():
 
 
 def init_scheduler():
-    scheduler = BackgroundScheduler()
+    scheduler = BackgroundScheduler(timezone=utc)
     scheduler.add_job(job, CronTrigger(hour="0", minute="5"))
     scheduler.start()
