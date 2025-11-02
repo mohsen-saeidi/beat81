@@ -93,14 +93,8 @@ def get_user_by_email(email):
             SELECT * FROM users WHERE email = ?
             ''', (email,))
 
-            user = cursor.fetchone()
+            return fetchone_as_json(cursor)
 
-            # Return the user record if it exists
-            if user:
-                return get_user(user)
-            else:
-                print(f"No user found with email: {email}")
-                return None
     except Exception as e:
         print(f"An error occurred while fetching user by email: {e}")
         return None
@@ -117,14 +111,8 @@ def get_user_by_user_id(telegram_user_id):
             SELECT * FROM users WHERE telegram_user_id = ?
             ''', (telegram_user_id,))
 
-            user = cursor.fetchone()
+            return fetchone_as_json(cursor)
 
-            # Return the user record if it exists
-            if user:
-                return get_user(user)
-            else:
-                print(f"No user found with telegram_user_id: {telegram_user_id}")
-                return None
     except Exception as e:
         print(f"An error occurred while fetching user by telegram_user_id: {e}")
         return None
@@ -140,12 +128,12 @@ def get_all_subscriptions():
             SELECT * FROM subscriptions
             ''')
 
-            subscriptions = cursor.fetchall()
-
+            return fetchall_as_json(cursor)
 
     except Exception as e:
         print(f"An error occurred while fetching subscriptions: {e}")
         return None
+
 
 def get_user_subscriptions(telegram_user_id):
     try:
@@ -163,26 +151,34 @@ def get_user_subscriptions(telegram_user_id):
         print(f"An error occurred while fetching subscriptions: {e}")
         return None
 
-def get_subscription(telegram_user_id, location_id, city, day_of_week, time):
+
+def get_subscription_by_id(subscription_id):
     try:
         with sqlite3.connect(DATABASE_FILE) as conn:
             cursor = conn.cursor()
 
             # Query to fetch user details by email
             cursor.execute('''
-            SELECT * FROM subscriptions WHERE telegram_user_id = ? AND location_id = ? AND city = ? AND day_of_week = ? AND time = ?
-            ''', (telegram_user_id, location_id, city.name, day_of_week, time))
+            SELECT * FROM subscriptions WHERE id = ?
+            ''', subscription_id)
 
-            subscription = cursor.fetchone()
-
-            if subscription:
-                return get_subscription_data(subscription)
-            else:
-                return None
+            return fetchone_as_json(cursor)
 
     except Exception as e:
         print(f"An error occurred while fetching subscriptions: {e}")
         return None
+
+
+def cancel_subscription(subscription_id):
+    try:
+        with sqlite3.connect(DATABASE_FILE) as conn:
+            cursor = conn.cursor()
+            cursor.execute('DELETE FROM subscriptions WHERE id = ?', (subscription_id,))
+            conn.commit()
+            return True
+    except Exception as e:
+        print(f"An error occurred while cancelling subscription: {e}")
+        return False
 
 
 def clear_token(telegram_user_id):
@@ -198,32 +194,15 @@ def clear_token(telegram_user_id):
         return False
 
 
-def get_user(user):
-    return {
-        "id": user[0],
-        "telegram_user_id": user[1],
-        "beat81_user_id": user[2],
-        "email": user[3],
-        "token": user[4],
-        "first_name": user[5],
-        "last_name": user[6],
-        "creation_time": user[7],
-        "last_login_date": user[8]
-    }
-
-def get_subscription_data(subscription):
-    return {
-        "id": subscription[0],
-        "user_id": subscription[1],
-        "telegram_user_id": subscription[2],
-        "location_id": subscription[3],
-        "city": subscription[4],
-        "day_of_week": subscription[5],
-        "time": subscription[6],
-        "creation_time": subscription[7]
-    }
-
 def fetchall_as_json(cursor):
     rows = cursor.fetchall()
     columns = [desc[0] for desc in cursor.description]
     return [dict(zip(columns, row)) for row in rows]
+
+
+def fetchone_as_json(cursor):
+    row = cursor.fetchone()
+    if row is None:
+        return None  # Return None if no more rows are found
+    columns = [desc[0] for desc in cursor.description]
+    return dict(zip(columns, row))

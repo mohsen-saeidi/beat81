@@ -8,7 +8,8 @@ from beat81.beat81_api import login, tickets, ticket_info, ticket_cancel, Unauth
     register_event, register_series, location_info
 from beat81.city_helper import City
 from beat81.date_helper import get_date_formatted_day_hour, DaysOfWeek, get_date_formatted_hour, get_weekday_form_date
-from beat81.db_helper import get_user_by_user_id, clear_token, get_user_subscriptions
+from beat81.db_helper import get_user_by_user_id, clear_token, get_user_subscriptions, get_subscription_by_id, \
+    cancel_subscription
 from beat81.job_schedule import init_scheduler
 
 # Load token and other environment variables from .env file
@@ -43,6 +44,30 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await get_my_bookings(query, telegram_user_id)
 
     elif query.data == "get_my_subscriptions":
+        await get_my_subscriptions(query, telegram_user_id)
+
+    elif query.data.startswith("subscriptionInfo_"):
+        subscription_id = query.data.split("_")[1]
+        subscription_data = get_subscription_by_id(subscription_id)
+        location_id = subscription_data.get('location_id')
+        location_data = location_info(location_id).get('data')
+        location_name = location_data.get('name')
+        time = subscription_data.get('time')
+        day_of_week = subscription_data.get('day_of_week')
+        keyboard = [[InlineKeyboardButton("Cancel", callback_data=f"cancelSubscription_{subscription_id}")],
+                    [InlineKeyboardButton("Back", callback_data="get_my_subscriptions")]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await query.message.reply_text(
+            f"id: {subscription_id}\nLocation: {location_name}\nDay of week: {day_of_week}\nTime: {time}",
+            reply_markup=reply_markup)
+
+    elif query.data.startswith("cancelSubscription_"):
+        subscription_id = query.data.split("_")[1]
+        result = cancel_subscription(subscription_id)
+        if result:
+            await query.message.reply_text("Subscription cancelled successfully")
+        else:
+            await query.message.reply_text(f"Could not cancel subscription. Please try again later.")
         await get_my_subscriptions(query, telegram_user_id)
 
     elif query.data.startswith("cancelTicket_"):
@@ -190,6 +215,7 @@ async def get_my_bookings(query, telegram_user_id):
     await query.message.reply_text(f"Total bookings: {tickets_response.get('total')}",
                                    reply_markup=InlineKeyboardMarkup(keyboard))
 
+
 async def get_my_subscriptions(query, telegram_user_id):
     subscriptions = get_user_subscriptions(telegram_user_id)
     keyboard = []
@@ -203,9 +229,9 @@ async def get_my_subscriptions(query, telegram_user_id):
         keyboard.append(
             [InlineKeyboardButton(f"{location_name} - {day_of_week} - {time}",
                                   callback_data=f"subscriptionInfo_{subscription_id}")])
-        keyboard.append([InlineKeyboardButton("Back", callback_data="main_menu")])
-        await query.message.reply_text(f"Total subscriptions: {len(subscriptions)}",
-                                       reply_markup=InlineKeyboardMarkup(keyboard))
+    keyboard.append([InlineKeyboardButton("Back", callback_data="main_menu")])
+    await query.message.reply_text(f"Total subscriptions: {len(subscriptions)}",
+                                   reply_markup=InlineKeyboardMarkup(keyboard))
 
 
 # Message handler for email and password input
