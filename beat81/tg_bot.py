@@ -130,13 +130,9 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif query.data.startswith("registerEventSeries_"):
         event_id = query.data.split("_")[1]
-        register_data = register_series(event_id, telegram_user_id)
-        if register_data:
-            await query.message.reply_text("Series booked successfully",
-                                           reply_markup=main_menu_keyboard(telegram_user_id))
-        else:
-            await query.message.reply_text("Something went wrong. Please try again later.",
-                                           reply_markup=main_menu_keyboard(telegram_user_id))
+        register_series(event_id, telegram_user_id)
+        await query.message.reply_text("Series booked successfully",
+                                       reply_markup=main_menu_keyboard(telegram_user_id))
 
 
     elif query.data.startswith("changeCity_"):

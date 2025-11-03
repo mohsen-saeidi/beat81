@@ -211,16 +211,16 @@ def register_series(event_id, telegram_user_id):
     city = City[event_data.get('location').get('city_code')]
     save_subscription(telegram_user_id, location_id, city, day_of_week, time)
     date = get_date_from_string(event_data.get('date_begin'))
-    return register_recursive(event_id, telegram_user_id, city, location_id, date)
+    register_recursive(event_id, telegram_user_id, city, location_id, date)
 
 
 def register_recursive(event_id, telegram_user_id, city, location_id, date):
-    register_data = register_event(event_id, telegram_user_id).get('data')
+    register_event(event_id, telegram_user_id)
     next_date = date + timedelta(days=7)
     if next_date > get_date_after(21):
-        return register_data
+        return
     next_event = find_next_event(city, location_id, next_date)
-    return register_recursive(next_event.get('id'), telegram_user_id, city, location_id, next_date)
+    register_recursive(next_event.get('id'), telegram_user_id, city, location_id, next_date)
 
 
 def find_next_event(city, location_id, date):
