@@ -199,13 +199,15 @@ async def get_my_bookings(query, telegram_user_id):
     keyboard = []
     for ticket in tickets_response.get('data', []):
         event = ticket.get('event')
+        current_status = ticket.get('current_status')
+        status_name = '(Waitlisted)' if current_status.get('status_name') == 'waitlisted' else ''
         iso_date = event.get('date_begin')
         formatted_time = get_date_formatted_day_hour(iso_date)
         location = event.get('location')
         location_name = location.get('name')
         ticket_id = ticket.get('id')
         keyboard.append(
-            [InlineKeyboardButton(f"{location_name} - {formatted_time}",
+            [InlineKeyboardButton(f"{location_name} - {formatted_time}{status_name}",
                                   callback_data=f"ticketInfo_{ticket_id}")])
     keyboard.append([InlineKeyboardButton("Back", callback_data="main_menu")])
     await query.message.reply_text(f"Total bookings: {tickets_response.get('total')}",
