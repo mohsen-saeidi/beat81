@@ -23,6 +23,6 @@ def job():
 
 
 def init_scheduler():
-    scheduler = BackgroundScheduler(timezone=utc)
-    scheduler.add_job(job, CronTrigger(hour="0", minute="5"))
+    scheduler = BackgroundScheduler()
+    scheduler.add_job(job, CronTrigger(hour="21", minute="0", second="0"))
     scheduler.start()
