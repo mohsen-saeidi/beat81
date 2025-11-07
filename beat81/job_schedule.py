@@ -8,6 +8,7 @@ from beat81.db_helper import get_all_subscriptions
 
 
 def job():
+    print("Running job to register all subscriptions....")
     subscriptions = get_all_subscriptions()
     for subscription in subscriptions:
         telegram_user_id = subscription.get('telegram_user_id')
@@ -24,5 +25,5 @@ def job():
 
 def init_scheduler():
     scheduler = BackgroundScheduler()
-    scheduler.add_job(job, CronTrigger(hour="22", minute="10", second="0"))
+    scheduler.add_job(job, CronTrigger(hour="22", minute="15", second="0"))
     scheduler.start()
