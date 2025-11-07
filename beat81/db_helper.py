@@ -2,13 +2,11 @@ import os
 import sqlite3
 from datetime import datetime
 
-# Define the directory and file for the database
 DATA_DIRECTORY = "data"
 DATABASE_FILE = os.path.join(DATA_DIRECTORY, "user_data.db")
 
-# Ensure the data directory exists
 if not os.path.exists(DATA_DIRECTORY):
-    os.makedirs(DATA_DIRECTORY)  # Create the data directory if it doesn't exist
+    os.makedirs(DATA_DIRECTORY)
 
 
 def init_db():
@@ -26,7 +24,8 @@ def init_db():
                 first_name TEXT,
                 last_name TEXT,
                 creation_time DATETIME DEFAULT CURRENT_TIMESTAMP,
-                last_login_date DATETIME 
+                last_login_date DATETIME,
+                UNIQUE (telegram_user_id, beat81_user_id)
             )
         ''')
 
@@ -44,7 +43,21 @@ def init_db():
                 UNIQUE (user_id, location_id, day_of_week, time)
             )
         ''')
-        conn.commit()  # Save changes
+
+        cursor.execute('''
+                CREATE TABLE IF NOT EXISTS autojoins (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL,
+                    telegram_user_id TEXT NOT NULL,
+                    ticket_id TEXT NOT NULL,
+                    event_id TEXT NOT NULL,
+                    creation_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (user_id) REFERENCES users (user_id),
+                    UNIQUE (user_id, ticket_id, event_id)
+                )
+        ''')
+
+        conn.commit()
 
 
 def save_user(telegram_user_id, beat81_user_id, email, token, first_name, last_name, creation_time=datetime.now(),
@@ -57,11 +70,10 @@ def save_user(telegram_user_id, beat81_user_id, email, token, first_name, last_n
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 telegram_user_id, beat81_user_id, email, token, first_name, last_name, creation_time, last_login_date))
-            conn.commit()  # Save changes
+            conn.commit()
             print(f"User {email} saved successfully.")
             return True
     except sqlite3.IntegrityError:
-        # If the email already exists
         print(f"User {email} already exists in the database.")
         return False
 
@@ -75,11 +87,26 @@ def save_subscription(telegram_user_id, location_id, city, day_of_week, time, cr
             INSERT INTO subscriptions (user_id, telegram_user_id, location_id, city, day_of_week, time, creation_time)
             VALUES (?, ?, ?, ?, ?, ?, ?)
             ''', (user['id'], telegram_user_id, location_id, city.name, day_of_week, time, creation_time))
-            conn.commit()  # Save changes
+            conn.commit()
             return True
     except sqlite3.IntegrityError:
-        # If the email already exists
         print(f"Subscription {user['id']}, {location_id}, {day_of_week}, {time} already exists in the database.")
+        return False
+
+
+def save_auto_join(telegram_user_id, ticket_id, event_id, creation_time=datetime.now()):
+    user = get_user_by_user_id(telegram_user_id)
+    try:
+        with sqlite3.connect(DATABASE_FILE) as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+            INSERT INTO autojoins (user_id, telegram_user_id, ticket_id, event_id, creation_time)
+            VALUES (?, ?, ?, ?, ?)
+            ''', (user['id'], telegram_user_id, ticket_id, event_id, creation_time))
+            conn.commit()
+            return True
+    except sqlite3.IntegrityError:
+        print(f"auto join {user['id']}, {ticket_id}, {event_id} already exists in the database.")
         return False
 
 
@@ -88,7 +115,6 @@ def get_user_by_email(email):
         with sqlite3.connect(DATABASE_FILE) as conn:
             cursor = conn.cursor()
 
-            # Query to fetch user details by email
             cursor.execute('''
             SELECT * FROM users WHERE email = ?
             ''', (email,))
@@ -106,7 +132,6 @@ def get_user_by_user_id(telegram_user_id):
         with sqlite3.connect(DATABASE_FILE) as conn:
             cursor = conn.cursor()
 
-            # Query to fetch user details by email
             cursor.execute('''
             SELECT * FROM users WHERE telegram_user_id = ?
             ''', (telegram_user_id,))
@@ -123,7 +148,6 @@ def get_all_subscriptions():
         with sqlite3.connect(DATABASE_FILE) as conn:
             cursor = conn.cursor()
 
-            # Query to fetch user details by email
             cursor.execute('''
             SELECT * FROM subscriptions
             ''')
@@ -135,14 +159,45 @@ def get_all_subscriptions():
         return None
 
 
+def get_all_auto_joins():
+    try:
+        with sqlite3.connect(DATABASE_FILE) as conn:
+            cursor = conn.cursor()
+
+            cursor.execute('''
+            SELECT * FROM autojoins
+            ''')
+
+            return fetchall_as_json(cursor)
+
+    except Exception as e:
+        print(f"An error occurred while fetching auto joins: {e}")
+        return None
+
+
 def get_user_subscriptions(telegram_user_id):
     try:
         with sqlite3.connect(DATABASE_FILE) as conn:
             cursor = conn.cursor()
 
-            # Query to fetch user details by email
             cursor.execute('''
             SELECT * FROM subscriptions WHERE telegram_user_id = ?
+            ''', (telegram_user_id,))
+
+            return fetchall_as_json(cursor)
+
+    except Exception as e:
+        print(f"An error occurred while fetching subscriptions: {e}")
+        return None
+
+
+def get_user_auto_joins(telegram_user_id):
+    try:
+        with sqlite3.connect(DATABASE_FILE) as conn:
+            cursor = conn.cursor()
+
+            cursor.execute('''
+            SELECT * FROM autojoins WHERE telegram_user_id = ?
             ''', (telegram_user_id,))
 
             return fetchall_as_json(cursor)
@@ -157,7 +212,6 @@ def get_subscription_by_id(subscription_id):
         with sqlite3.connect(DATABASE_FILE) as conn:
             cursor = conn.cursor()
 
-            # Query to fetch user details by email
             cursor.execute('''
             SELECT * FROM subscriptions WHERE id = ?
             ''', subscription_id)
@@ -169,6 +223,37 @@ def get_subscription_by_id(subscription_id):
         return None
 
 
+def get_auto_join_by_id(auto_join_id):
+    try:
+        with sqlite3.connect(DATABASE_FILE) as conn:
+            cursor = conn.cursor()
+
+            cursor.execute('''
+            SELECT * FROM autojoins WHERE id = ?
+            ''', auto_join_id)
+
+            return fetchone_as_json(cursor)
+
+    except Exception as e:
+        print(f"An error occurred while fetching subscriptions: {e}")
+        return None
+
+
+def get_auto_join_by_ticket_id(ticket_id):
+    try:
+        with sqlite3.connect(DATABASE_FILE) as conn:
+            cursor = conn.cursor()
+
+            cursor.execute('''
+            SELECT * FROM autojoins WHERE ticket_id = ?
+            ''', (ticket_id,))
+
+            return fetchone_as_json(cursor)
+
+    except Exception as e:
+        print(f"An error occurred while fetching subscriptions: {e}")
+        return None
+
 def cancel_subscription(subscription_id):
     try:
         with sqlite3.connect(DATABASE_FILE) as conn:
@@ -178,6 +263,18 @@ def cancel_subscription(subscription_id):
             return True
     except Exception as e:
         print(f"An error occurred while cancelling subscription: {e}")
+        return False
+
+
+def cancel_auto_join(auto_join_id):
+    try:
+        with sqlite3.connect(DATABASE_FILE) as conn:
+            cursor = conn.cursor()
+            cursor.execute('DELETE FROM autojoins WHERE id = ?', (auto_join_id,))
+            conn.commit()
+            return True
+    except Exception as e:
+        print(f"An error occurred while cancelling auto join: {e}")
         return False
 
 
@@ -203,6 +300,6 @@ def fetchall_as_json(cursor):
 def fetchone_as_json(cursor):
     row = cursor.fetchone()
     if row is None:
-        return None  # Return None if no more rows are found
+        return None
     columns = [desc[0] for desc in cursor.description]
     return dict(zip(columns, row))

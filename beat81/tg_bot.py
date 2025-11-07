@@ -9,7 +9,8 @@ from beat81.beat81_api import login, tickets, ticket_info, ticket_cancel, Unauth
 from beat81.city_helper import City
 from beat81.date_helper import get_date_formatted_day_hour, DaysOfWeek, get_date_formatted_hour, get_weekday_form_date
 from beat81.db_helper import get_user_by_user_id, clear_token, get_user_subscriptions, get_subscription_by_id, \
-    cancel_subscription
+    cancel_subscription, save_auto_join, get_user_auto_joins, get_auto_join_by_id, cancel_auto_join, \
+    get_auto_join_by_ticket_id
 from beat81.job_schedule import init_scheduler
 
 # Load token and other environment variables from .env file
@@ -46,6 +47,9 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif query.data == "get_my_subscriptions":
         await get_my_subscriptions(query, telegram_user_id)
 
+    elif query.data == "get_my_auto_joins":
+        await get_my_auto_joins(query, telegram_user_id)
+
     elif query.data.startswith("subscriptionInfo_"):
         subscription_id = query.data.split("_")[1]
         subscription_data = get_subscription_by_id(subscription_id)
@@ -61,6 +65,34 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"Location: {location_name}\nDay of week: {day_of_week}\nTime: {time}",
             reply_markup=reply_markup)
 
+    elif query.data.startswith("autoJoinInfo_"):
+        auto_join_id = query.data.split("_")[1]
+        auto_join_data = get_auto_join_by_id(auto_join_id)
+        ticket_id = auto_join_data.get('ticket_id')
+        ticket_data = ticket_info(telegram_user_id, ticket_id).get('data')
+        event = ticket_data.get('event')
+        iso_date = event.get('date_begin')
+        formatted_time = get_date_formatted_day_hour(iso_date)
+        location = event.get('location')
+        location_name = location.get('name')
+        max_participants = event.get('max_participants')
+        participants_count = event.get('participants_count')
+        keyboard = [[InlineKeyboardButton("Cancel", callback_data=f"cancelAutoJoin_{auto_join_id}")],
+                    [InlineKeyboardButton("Back", callback_data="get_my_auto_joins")]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await query.message.reply_text(
+            f"Location: {location_name}\nDate: {formatted_time}\nParticipants: {participants_count}/{max_participants}",
+            reply_markup=reply_markup)
+
+    elif query.data.startswith("cancelAutoJoin_"):
+        auto_join_id = query.data.split("_")[1]
+        result = cancel_auto_join(auto_join_id)
+        if result:
+            await query.message.reply_text("Auto join cancelled successfully")
+        else:
+            await query.message.reply_text(f"Could not cancel auto join. Please try again later.")
+        await get_my_auto_joins(query, telegram_user_id)
+
     elif query.data.startswith("cancelSubscription_"):
         subscription_id = query.data.split("_")[1]
         result = cancel_subscription(subscription_id)
@@ -69,6 +101,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             await query.message.reply_text(f"Could not cancel subscription. Please try again later.")
         await get_my_subscriptions(query, telegram_user_id)
+
 
     elif query.data.startswith("cancelTicket_"):
         ticket_id = query.data.split("_")[1]
@@ -81,8 +114,10 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif query.data.startswith("ticketInfo_"):
         ticket_id = query.data.split("_")[1]
-        ticket = ticket_info(telegram_user_id, ticket_id).get('data')
-        event = ticket.get('event')
+        ticket_data = ticket_info(telegram_user_id, ticket_id).get('data')
+        event = ticket_data.get('event')
+        current_status = ticket_data.get('current_status')
+        status_name = current_status.get('status_name')
         iso_date = event.get('date_begin')
         formatted_time = get_date_formatted_day_hour(iso_date)
         location = event.get('location')
@@ -91,11 +126,20 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         participants_count = event.get('participants_count')
         address = location.get('address')
         complete_address = f"{address.get('address1')}, {address.get('zip')}"
-        keyboard = [[InlineKeyboardButton("Cancel", callback_data=f"cancelTicket_{ticket_id}")],
-                    [InlineKeyboardButton("Back", callback_data="get_my_bookings")]]
+        keyboard = []
+        if status_name == 'waitlisted':
+            keyboard.append([InlineKeyboardButton("Leave waitlist", callback_data=f"cancelTicket_{ticket_id}")])
+            auto_join_result = get_auto_join_by_ticket_id(ticket_id)
+            if auto_join_result is None:
+                keyboard.append(
+                    [InlineKeyboardButton("Auto join", callback_data=f"autoJoin_{ticket_id}"), ])
+        else:
+            keyboard.append([InlineKeyboardButton("Cancel", callback_data=f"cancelTicket_{ticket_id}")])
+
+        keyboard.append([InlineKeyboardButton("Back", callback_data="get_my_bookings")])
         reply_markup = InlineKeyboardMarkup(keyboard)
         await query.message.reply_text(
-            f"Participants: {participants_count}/{max_participants}\nPlace: {location_name}\nAddress:{complete_address}\nDate: {formatted_time}",
+            f"Status: {status_name}\nParticipants: {participants_count}/{max_participants}\nPlace: {location_name}\nAddress:{complete_address}\nDate: {formatted_time}",
             reply_markup=reply_markup)
 
     elif query.data.startswith("eventInfo_"):
@@ -124,6 +168,9 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if current_status == 'booked':
             await query.message.reply_text("Session booked successfully",
                                            reply_markup=main_menu_keyboard(telegram_user_id))
+        elif current_status == 'waitlisted':
+            await query.message.reply_text("Joined waitlist successfully.",
+                                           reply_markup=main_menu_keyboard(telegram_user_id))
         else:
             await query.message.reply_text("Something went wrong. Please try again later.",
                                            reply_markup=main_menu_keyboard(telegram_user_id))
@@ -131,8 +178,18 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif query.data.startswith("registerEventSeries_"):
         event_id = query.data.split("_")[1]
         register_series(event_id, telegram_user_id)
-        await query.message.reply_text("Series booked successfully",
-                                       reply_markup=main_menu_keyboard(telegram_user_id))
+        await query.message.reply_text("Series booked successfully", reply_markup=main_menu_keyboard(telegram_user_id))
+
+    elif query.data.startswith("autoJoin_"):
+        ticket_id = query.data.split("_")[1]
+        ticket_data = ticket_info(telegram_user_id, ticket_id).get('data')
+        result = save_auto_join(telegram_user_id, ticket_id, ticket_data.get('event_id'))
+        if result:
+            await query.message.reply_text("Auto join saved successfully.",
+                                           reply_markup=main_menu_keyboard(telegram_user_id))
+        else:
+            await query.message.reply_text("Something went wrong. Please try again later.",
+                                           reply_markup=main_menu_keyboard(telegram_user_id))
 
 
     elif query.data.startswith("changeCity_"):
@@ -225,10 +282,30 @@ async def get_my_subscriptions(query, telegram_user_id):
         time = subscription.get('time')
         day_of_week = subscription.get('day_of_week')
         keyboard.append(
-            [InlineKeyboardButton(f"{location_name} - {day_of_week} - {time}",
+            [InlineKeyboardButton(f"{location_name} - {DaysOfWeek[day_of_week].value[0]} - {time}",
                                   callback_data=f"subscriptionInfo_{subscription_id}")])
     keyboard.append([InlineKeyboardButton("Back", callback_data="main_menu")])
     await query.message.reply_text(f"Total subscriptions: {len(subscriptions)}",
+                                   reply_markup=InlineKeyboardMarkup(keyboard))
+
+
+async def get_my_auto_joins(query, telegram_user_id):
+    auto_joins = get_user_auto_joins(telegram_user_id)
+    keyboard = []
+    for auto_join in auto_joins:
+        auto_join_id = auto_join.get('id')
+        ticket_id = auto_join.get('ticket_id')
+        ticket_data = ticket_info(telegram_user_id, ticket_id).get('data')
+        event = ticket_data.get('event')
+        iso_date = event.get('date_begin')
+        formatted_time = get_date_formatted_day_hour(iso_date)
+        location = event.get('location')
+        location_name = location.get('name')
+        keyboard.append(
+            [InlineKeyboardButton(f"{location_name} - {formatted_time}",
+                                  callback_data=f"autoJoinInfo_{auto_join_id}")])
+    keyboard.append([InlineKeyboardButton("Back", callback_data="main_menu")])
+    await query.message.reply_text(f"Total auto joins: {len(auto_joins)}",
                                    reply_markup=InlineKeyboardMarkup(keyboard))
 
 
@@ -279,6 +356,7 @@ def main_menu_keyboard(telegram_user_id):
         current_city = user_data[telegram_user_id]['current_city']
         keyboard = [[InlineKeyboardButton("Get my bookings", callback_data="get_my_bookings")],
                     [InlineKeyboardButton("Get my subscriptions", callback_data="get_my_subscriptions")],
+                    [InlineKeyboardButton("Get my auto joins", callback_data="get_my_auto_joins")],
                     [InlineKeyboardButton("Show week classes", callback_data="show_week_classes")],
                     [InlineKeyboardButton(f"Change city(current: {current_city.value})", callback_data="changeCity")]]
     else:

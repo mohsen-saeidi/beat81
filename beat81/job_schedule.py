@@ -3,13 +3,13 @@ from datetime import timedelta
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 
-from beat81.beat81_api import register_recursive, find_next_event
+from beat81.beat81_api import register_recursive, find_next_event, register_event
 from beat81.city_helper import City
 from beat81.date_helper import DaysOfWeek, next_date_time_weekday
-from beat81.db_helper import get_all_subscriptions
+from beat81.db_helper import get_all_subscriptions, get_all_auto_joins, cancel_auto_join
 
 
-def job():
+def subscription_job():
     print("Running job to register all subscriptions....")
     subscriptions = get_all_subscriptions()
     for subscription in subscriptions:
@@ -25,7 +25,21 @@ def job():
         register_recursive(next_event.get('id'), telegram_user_id, city, location_id, date)
 
 
+def auto_join_job():
+    print("Running auto join jobs....")
+    auto_joins = get_all_auto_joins()
+    for auto_join in auto_joins:
+        telegram_user_id = auto_join.get('telegram_user_id')
+        event_id = auto_join.get('event_id')
+        result_data = register_event(event_id, telegram_user_id).get('data')
+        status_name = result_data.get('current_status').get('status_name')
+        if status_name == 'booked':
+            print(f"Auto join booked successfully for ticket id {auto_join.get('ticket_id')}")
+            cancel_auto_join(auto_join.get('id'))
+
+
 def init_scheduler():
     scheduler = BackgroundScheduler()
-    scheduler.add_job(job, CronTrigger(hour="21", minute="0", second="0"))
+    scheduler.add_job(subscription_job, CronTrigger(hour="21", minute="0", second="0"))
+    scheduler.add_job(auto_join_job, CronTrigger(minute="*/1", second="0"))
     scheduler.start()
