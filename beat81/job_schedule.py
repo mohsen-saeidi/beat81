@@ -24,5 +24,5 @@ def job():
 
 def init_scheduler():
     scheduler = BackgroundScheduler()
-    scheduler.add_job(job, CronTrigger(hour="21", minute="0", second="0"))
+    scheduler.add_job(job, CronTrigger(hour="22", minute="10", second="0"))
     scheduler.start()

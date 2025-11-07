@@ -215,6 +215,7 @@ def register_series(event_id, telegram_user_id):
 
 
 def register_recursive(event_id, telegram_user_id, city, location_id, date):
+    print(f"Registering event {event_id}, user: {telegram_user_id}, date: {date}")
     register_event(event_id, telegram_user_id)
     next_date = date + timedelta(days=7)
     if next_date > get_date_after(21):
