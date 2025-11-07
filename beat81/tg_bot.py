@@ -10,7 +10,7 @@ from beat81.city_helper import City
 from beat81.date_helper import get_date_formatted_day_hour, DaysOfWeek, get_date_formatted_hour, get_weekday_form_date
 from beat81.db_helper import get_user_by_user_id, clear_token, get_user_subscriptions, get_subscription_by_id, \
     cancel_subscription, save_auto_join, get_user_auto_joins, get_auto_join_by_id, cancel_auto_join, \
-    get_auto_join_by_ticket_id
+    get_auto_join_by_event_id, delete_auto_join_by_ticket_id
 from beat81.job_schedule import init_scheduler
 
 # Load token and other environment variables from .env file
@@ -106,6 +106,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif query.data.startswith("cancelTicket_"):
         ticket_id = query.data.split("_")[1]
         result = ticket_cancel(telegram_user_id, ticket_id)
+        delete_auto_join_by_ticket_id(ticket_id)
         if result:
             await query.message.reply_text("Ticket cancelled successfully")
         else:
@@ -116,6 +117,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ticket_id = query.data.split("_")[1]
         ticket_data = ticket_info(telegram_user_id, ticket_id).get('data')
         event = ticket_data.get('event')
+        event_id = event.get('id')
         current_status = ticket_data.get('current_status')
         status_name = current_status.get('status_name')
         iso_date = event.get('date_begin')
@@ -129,7 +131,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         keyboard = []
         if status_name == 'waitlisted':
             keyboard.append([InlineKeyboardButton("Leave waitlist", callback_data=f"cancelTicket_{ticket_id}")])
-            auto_join_result = get_auto_join_by_ticket_id(ticket_id)
+            auto_join_result = get_auto_join_by_event_id(event_id)
             if auto_join_result is None:
                 keyboard.append(
                     [InlineKeyboardButton("Auto join", callback_data=f"autoJoin_{ticket_id}"), ])

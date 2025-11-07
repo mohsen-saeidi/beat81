@@ -53,7 +53,7 @@ def init_db():
                     event_id TEXT NOT NULL,
                     creation_time DATETIME DEFAULT CURRENT_TIMESTAMP,
                     FOREIGN KEY (user_id) REFERENCES users (user_id),
-                    UNIQUE (user_id, ticket_id, event_id)
+                    UNIQUE (user_id, event_id)
                 )
         ''')
 
@@ -239,14 +239,14 @@ def get_auto_join_by_id(auto_join_id):
         return None
 
 
-def get_auto_join_by_ticket_id(ticket_id):
+def get_auto_join_by_event_id(event_id):
     try:
         with sqlite3.connect(DATABASE_FILE) as conn:
             cursor = conn.cursor()
 
             cursor.execute('''
-            SELECT * FROM autojoins WHERE ticket_id = ?
-            ''', (ticket_id,))
+            SELECT * FROM autojoins WHERE event_id = ?
+            ''', (event_id,))
 
             return fetchone_as_json(cursor)
 
@@ -277,6 +277,16 @@ def cancel_auto_join(auto_join_id):
         print(f"An error occurred while cancelling auto join: {e}")
         return False
 
+def delete_auto_join_by_ticket_id(ticket_id):
+    try:
+        with sqlite3.connect(DATABASE_FILE) as conn:
+            cursor = conn.cursor()
+            cursor.execute('DELETE FROM autojoins WHERE ticket_id = ?', (ticket_id,))
+            conn.commit()
+            return True
+    except Exception as e:
+        print(f"An error occurred while deleting auto join: {e}")
+        return False
 
 def clear_token(telegram_user_id):
     try:
