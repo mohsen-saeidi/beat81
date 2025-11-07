@@ -8,5 +8,6 @@ services:
     pull_policy: always
     environment:
       - TZ=Europe/Berlin
+      - PYTHONUNBUFFERED=1
     volumes:
       - ./data:/app/data
