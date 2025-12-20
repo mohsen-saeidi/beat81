@@ -139,7 +139,7 @@ def get_user_by_user_id(telegram_user_id):
             return fetchone_as_json(cursor)
 
     except Exception as e:
-        print(f"An error occurred while fetching user by telegram_user_id: {e}")
+        print(f"An error occurred while fetching user by telegram_user_id: {telegram_user_id}, {e}")
         return None
 
 
@@ -176,6 +176,7 @@ def get_all_auto_joins():
 
 
 def get_user_subscriptions(telegram_user_id):
+    telegram_user_id = str(telegram_user_id)
     try:
         with sqlite3.connect(DATABASE_FILE) as conn:
             cursor = conn.cursor()
@@ -187,11 +188,12 @@ def get_user_subscriptions(telegram_user_id):
             return fetchall_as_json(cursor)
 
     except Exception as e:
-        print(f"An error occurred while fetching subscriptions: {e}")
+        print(f"An error occurred while fetching user {telegram_user_id} subscriptions: {e}")
         return None
 
 
 def get_user_auto_joins(telegram_user_id):
+    telegram_user_id = str(telegram_user_id)
     try:
         with sqlite3.connect(DATABASE_FILE) as conn:
             cursor = conn.cursor()
@@ -203,7 +205,7 @@ def get_user_auto_joins(telegram_user_id):
             return fetchall_as_json(cursor)
 
     except Exception as e:
-        print(f"An error occurred while fetching subscriptions: {e}")
+        print(f"An error occurred while fetching user {telegram_user_id} auto joins: {e}")
         return None
 
 
@@ -214,12 +216,12 @@ def get_subscription_by_id(subscription_id):
 
             cursor.execute('''
             SELECT * FROM subscriptions WHERE id = ?
-            ''', subscription_id)
+            ''', (subscription_id,))
 
             return fetchone_as_json(cursor)
 
     except Exception as e:
-        print(f"An error occurred while fetching subscriptions: {e}")
+        print(f"An error occurred while fetching subscriptions: {subscription_id}, {e}")
         return None
 
 
@@ -230,12 +232,12 @@ def get_auto_join_by_id(auto_join_id):
 
             cursor.execute('''
             SELECT * FROM autojoins WHERE id = ?
-            ''', auto_join_id)
+            ''', (auto_join_id,))
 
             return fetchone_as_json(cursor)
 
     except Exception as e:
-        print(f"An error occurred while fetching subscriptions: {e}")
+        print(f"An error occurred while fetching auto join: {auto_join_id}, {e}")
         return None
 
 
@@ -251,8 +253,9 @@ def get_auto_join_by_event_id(event_id):
             return fetchone_as_json(cursor)
 
     except Exception as e:
-        print(f"An error occurred while fetching subscriptions: {e}")
+        print(f"An error occurred while fetching autojoins: {e}")
         return None
+
 
 def cancel_subscription(subscription_id):
     try:
@@ -277,6 +280,7 @@ def cancel_auto_join(auto_join_id):
         print(f"An error occurred while cancelling auto join: {e}")
         return False
 
+
 def delete_auto_join_by_ticket_id(ticket_id):
     try:
         with sqlite3.connect(DATABASE_FILE) as conn:
@@ -288,7 +292,9 @@ def delete_auto_join_by_ticket_id(ticket_id):
         print(f"An error occurred while deleting auto join: {e}")
         return False
 
+
 def clear_token(telegram_user_id):
+    telegram_user_id = str(telegram_user_id)
     try:
         with sqlite3.connect(DATABASE_FILE) as conn:
             cursor = conn.cursor()
