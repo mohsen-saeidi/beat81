@@ -103,6 +103,25 @@ def ticket_cancel(telegram_user_id, ticket_id):
         return False
 
 
+def ticket_book(telegram_user_id, ticket_id):
+    user = get_user_by_user_id(telegram_user_id)
+    url = "https://api.production.b81.io/api/tickets/" + ticket_id + "/status"
+    payload = {
+        "status_name": "booked"
+    }
+    headers = {"Authorization": f"Bearer {user['token']}"}
+    try:
+        response = requests.post(url, json=payload, headers=headers)
+        if response.status_code == 200:
+            return True
+        else:
+            print(f"Failed to cancel ticket: {response.status_code}: {response.text}")
+            return False
+    except requests.exceptions.RequestException as e:
+        print(f"Error while calling the cancel ticket API: {e}")
+        return False
+
+
 def ticket_info(telegram_user_id, ticket_id):
     user = get_user_by_user_id(telegram_user_id)
     url = "https://api.production.b81.io/api/tickets/" + ticket_id

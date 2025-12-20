@@ -3,7 +3,7 @@ from datetime import timedelta
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 
-from beat81.beat81_api import register_recursive, find_next_event, register_event
+from beat81.beat81_api import register_recursive, find_next_event, ticket_book
 from beat81.city_helper import City
 from beat81.date_helper import DaysOfWeek, next_date_time_weekday
 from beat81.db_helper import get_all_subscriptions, get_all_auto_joins, cancel_auto_join
@@ -30,9 +30,9 @@ def auto_join_job():
     auto_joins = get_all_auto_joins()
     for auto_join in auto_joins:
         telegram_user_id = auto_join.get('telegram_user_id')
-        event_id = auto_join.get('event_id')
-        result_data = register_event(event_id, telegram_user_id).get('data')
-        status_name = result_data.get('current_status').get('status_name')
+        ticket_id = auto_join.get('ticket_id')
+        result_data = ticket_book(telegram_user_id, ticket_id).get('data')
+        status_name = result_data.get('status_name')
         if status_name == 'booked':
             print(f"Auto join booked successfully for ticket id {auto_join.get('ticket_id')}")
             cancel_auto_join(auto_join.get('id'))
