@@ -31,9 +31,8 @@ def auto_join_job():
     for auto_join in auto_joins:
         telegram_user_id = auto_join.get('telegram_user_id')
         ticket_id = auto_join.get('ticket_id')
-        result_data = ticket_book(telegram_user_id, ticket_id).get('data')
-        status_name = result_data.get('status_name')
-        if status_name == 'booked':
+        result = ticket_book(telegram_user_id, ticket_id)
+        if result:
             print(f"Auto join booked successfully for ticket id {auto_join.get('ticket_id')}")
             cancel_auto_join(auto_join.get('id'))
 

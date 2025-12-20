@@ -115,7 +115,6 @@ def ticket_book(telegram_user_id, ticket_id):
         if response.status_code == 200:
             return True
         else:
-            print(f"Failed to cancel ticket: {response.status_code}: {response.text}")
             return False
     except requests.exceptions.RequestException as e:
         print(f"Error while calling the cancel ticket API: {e}")
