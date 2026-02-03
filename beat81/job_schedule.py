@@ -26,7 +26,6 @@ def subscription_job():
 
 
 def auto_join_job():
-    print("Running auto join jobs....")
     auto_joins = get_all_auto_joins()
     for auto_join in auto_joins:
         telegram_user_id = auto_join.get('telegram_user_id')

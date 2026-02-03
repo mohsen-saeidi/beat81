@@ -68,6 +68,13 @@ def save_user(telegram_user_id, beat81_user_id, email, token, first_name, last_n
             cursor.execute('''
             INSERT INTO users (telegram_user_id, beat81_user_id, email, token, first_name, last_name, creation_time, last_login_date)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(telegram_user_id) DO UPDATE SET
+                    beat81_user_id = excluded.beat81_user_id,
+                    email = excluded.email,
+                    token = excluded.token,
+                    first_name = excluded.first_name,
+                    last_name = excluded.last_name,
+                    last_login_date = excluded.last_login_date
             ''', (
                 telegram_user_id, beat81_user_id, email, token, first_name, last_name, creation_time, last_login_date))
             conn.commit()
